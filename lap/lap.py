@@ -14,10 +14,10 @@ try:
             pair.append([x,assign[0][x]])
         return pair
 except:
-    import munkres
+    from munkres import linear_assignment
     
 def best_pairs(matrix):
-    return munkres.linear_assignment(matrix)
+    return linear_assignment(matrix)
 
 def best_cost(matrix):
   hun=lap(matrix)

@@ -1,1 +1,1 @@
-__all__ = [ "lap", "murty" ]
+__all__ = [ "lap", "murty", 'munkres' ]
