@@ -14,6 +14,8 @@ import argparse
 from lap.lap import best_pairs
 import numpy as np
 
+__all__ = [ "structk", "gstructk","alchemy","structure" ]
+
 #def sidx(i1,i2): return ( (i1,i2) if i1<=i2 else (i2,i1) ) 
 
 class alchemy:
