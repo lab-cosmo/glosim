@@ -6,7 +6,6 @@ __all__ = [ "best_cost", "best_pairs" ]
 try: 
     import hungarian
     def linear_assignment(matrix):
-        print "using fast hungarian"
         m=copy(matrix)
         assign=hungarian.lap(m)
         pair=[]

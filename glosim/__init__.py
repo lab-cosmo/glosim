@@ -150,7 +150,7 @@ class structure:
       else: return 0
       
    def getenv(self, sp, i):
-      if sp in self.species and i<self.species[sp]:
+      if sp in self.env and i<len(self.env[sp]):
          return self.env[sp][i]
       else: 
          return environ(self.nmax,self.lmax,self.alchem,sp)  # missing atoms environments just returned as isolated species!
@@ -159,6 +159,7 @@ class structure:
       if sp in self.species and i<self.species[sp]:
          return False
       else: return True
+   
       
    def parse(self, fat, coff=5.0, nmax=4, lmax=3, gs=0.5, cw=1.0, nocenter=[], noatom=[]):
       """ Takes a frame in the QUIPPY format and computes a list of its environments. """
@@ -262,8 +263,9 @@ def lcm(a,b):
 def gstructk(strucA, strucB, alchem=alchemy()):
    return envk(strucA.globenv, strucB.globenv, alchem) 
 
-def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="sumlog", fout=None):
+def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="sumlog", fout=None, kit=None):
    nenv = 0
+   if kit is None: kit=structure()
    
    if periodic: # replicate structures to match structures of different periodicity
       # we do not check for compatibility at this stage, just assume that the 
@@ -282,7 +284,7 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="sumlog", fou
       zspecies = sorted(list(set(strucB.zspecies+strucA.zspecies)))
       nspecies = []
       for z in zspecies:
-         nz = max(strucA.getnz(z),strucB.getnz(z))
+         nz = max(strucA.getnz(z),strucB.getnz(z),kit.getnz(z))
          nspecies.append((z,nz)) 
          nenv += nz
       nenvA = nenvB = nenv
@@ -389,7 +391,7 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="sumlog", fou
       return 0.0 
    else: return np.sqrt(cost)
 
-def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, dmode, nocenter, noatom, nprocs, verbose=False, envij=None):
+def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, dmode, nocenter, noatom, nprocs, verbose=False, envij=None, usekit=False):
    
    print >> sys.stderr, "Reading input file", filename
    al = quippy.AtomsList(filename);
@@ -400,8 +402,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, dmode, nocenter
 #   alchem = alchemy(mu=mu, rules={ (6,7) : 1, (6,8): 1, (6, 17):1, (7, 8): 1  })  #hard coded
       
    sl = []
-   iframe = 0   
-   
+   iframe = 0      
    if verbose:
       qlog=quippy.AtomsWriter("log.xyz")
       slog=open("log.soap", "w")
@@ -428,7 +429,18 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, dmode, nocenter
           
       iframe +=1; 
    nf = len(sl)   
-      
+   
+   kit = None
+   if usekit:
+      kit = structure() 
+      for st in sl:
+          for s in st.species:  
+             if not s in kit.species:
+                kit.species[s]=st.species[s]
+             else:
+                kit.species[s]=max(kit.species[s], st.species[s])
+      print >> sys.stderr, "Using kit: ", kit.species
+          
    print >> sys.stderr, "Computing distance matrix"
               
    sim=np.zeros((nf,nf))
@@ -449,14 +461,14 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, dmode, nocenter
                   fij = open("environ-"+str(iframe)+"-"+str(jframe)+".dat", "w")
                else: fij = None
                
-               sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=dmode, fout=fij)          
+               sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=dmode, fout=fij, kit=kit)          
                sim[iframe][jframe]=sim[jframe][iframe]=sij
             sys.stderr.write("Matrix row %d                           \r" % (iframe))
       else:      
          # multiple processors
          def dorow(irow, nf, sl, psim): 
             for jframe in range(0,irow):
-               sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=dmode)          
+               sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=dmode, kit=kit)          
                psim[irow*nf+jframe]=sij  
                
          proclist = []   
@@ -484,7 +496,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, dmode, nocenter
       # must fix the normalization of the similarity matrix!
       sys.stderr.write("Normalizing permanent kernels           \n")
       for iframe in range (0, nf):   
-         sii = structk(sl[iframe], sl[iframe], alchem, periodic, mode=dmode, fout=None)
+         sii = structk(sl[iframe], sl[iframe], alchem, periodic, mode=dmode, fout=None, kit=kit)
          sim[iframe,iframe]=sii
          for jframe in range (0, nf): 
             sim[iframe,jframe]-=0.5*sii
@@ -492,6 +504,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, dmode, nocenter
       
    #print "final check", -np.log( np.dot( pdummy[6][0], pdummy[6][0] ) ), -np.log( np.dot( pdummy[6][0], pdummy[1][0] ) )
    print "# Similarity matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Distance: %s  Ignored_Z: %s  Ignored_Centers_Z: %s" % (filename, coff, nd, ld, gs, mu, centerweight, periodic, dmode, str(noatom), str(nocenter))
+   if (usekit): print "Using reference kit: ", kit
    for iframe in range(0,nf):
       for x in sim[iframe][0:nf]:
          print x,
@@ -511,6 +524,7 @@ if __name__ == '__main__':
       parser.add_argument("-g", type=float, default='0.5', help="Atom Gaussian sigma")
       parser.add_argument("-cw", type=float, default='1.0', help="Center atom weight")
       parser.add_argument("--mu", type=float, default='0.0', help="Extra penalty for comparing to missing atoms")
+      parser.add_argument("--usekit", action="store_true", help="Computes the least commond denominator of all structures and uses that as a reference state")      
       parser.add_argument("--dotdistance", action="store_true", help="Use dot product distance for the global metric")
       parser.add_argument("--kdistance", action="store_true", help="Use kernel distance sqrt(2-2k(x,x')) for the global metric")
       parser.add_argument("--nkdistance", action="store_true", help="Use normalized kernel distance sqrt(2-2k(x,x')/natoms) for the global metric") 
@@ -555,4 +569,4 @@ if __name__ == '__main__':
       else:
          envij=tuple(map(int,args.ij.split(",")))
 
-      main(args.filename, nd=args.n, ld=args.l, coff=args.c, gs=args.g, mu=args.mu, centerweight=args.cw, periodic=args.periodic, dmode=dmode, noatom=noatom, nocenter=nocenter, nprocs=args.np, verbose=args.verbose, envij=envij)
+      main(args.filename, nd=args.n, ld=args.l, coff=args.c, gs=args.g, mu=args.mu, centerweight=args.cw, periodic=args.periodic, usekit=args.usekit, dmode=dmode, noatom=noatom, nocenter=nocenter, nprocs=args.np, verbose=args.verbose, envij=envij)
