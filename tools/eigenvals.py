@@ -12,12 +12,11 @@ def main(fname):
    fmat = np.zeros((nel,nel), float)
    ik = 0
    while (len(sline)==nel):
-      print ik
       fmat[ik]=np.asarray(sline)
       fline = ffile.readline()
       sline=map(float,fline.split())
       ik+=1
-   fmat = np.exp(-fmat)
+   fmat = 0.5*(2-fmat*fmat)
    v = np.linalg.eigvalsh(fmat)
    print "finished reading"
    for i in range(len(v)):

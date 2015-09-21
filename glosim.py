@@ -447,7 +447,11 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, dmode, nocenter
       # use quick & dirty global fingerprints to compute distances
       for iframe in range (0, nf):      
          for jframe in range(0,iframe):
-            sij = -np.log(gstructk(sl[iframe], sl[jframe], alchem))
+            sij = 2-2*gstructk(sl[iframe], sl[jframe], alchem)   # default to kernel distance
+            if sij<0: 
+                print >> sys.stderr, "Negative distance detected", sij
+            else: sij=np.sqrt(sij)
+            # sij = -np.log(gstructk(sl[iframe], sl[jframe], alchem)) 
             sim[iframe][jframe]=sim[jframe][iframe]=sij
          sys.stderr.write("Matrix row %d                           \r" % (iframe))
    else:
@@ -502,7 +506,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, dmode, nocenter
       
    #print "final check", -np.log( np.dot( pdummy[6][0], pdummy[6][0] ) ), -np.log( np.dot( pdummy[6][0], pdummy[1][0] ) )
    print "# Similarity matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Distance: %s  Ignored_Z: %s  Ignored_Centers_Z: %s" % (filename, coff, nd, ld, gs, mu, centerweight, periodic, dmode, str(noatom), str(nocenter))
-   if (usekit): print "Using reference kit: ", kit
+   if (usekit): print "# Using reference kit: ", kit.species
    for iframe in range(0,nf):
       for x in sim[iframe][0:nf]:
          print x,
