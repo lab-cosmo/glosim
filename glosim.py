@@ -9,6 +9,7 @@
 
 import quippy
 import sys, time
+from copy import copy, deepcopy
 from multiprocessing import Process, Value, Array
 import argparse
 from lap.lap import best_pairs
@@ -258,7 +259,8 @@ def gcd(a,b):
 def lcm(a,b):
    return a*b/gcd(b,a)
 
-def gstructk(strucA, strucB, alchem=alchemy()):
+def gstructk(strucA, strucB, alchem=alchemy(), periodic=False, kit=None):
+    
    return envk(strucA.globenv, strucB.globenv, alchem) 
 
 def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="sumlog", fout=None, kit=None):
@@ -288,6 +290,22 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="sumlog", fou
       nenvA = nenvB = nenv
       nspeciesA = nspeciesB = nspecies
    
+   if mode=="average":
+       if mode == "periodic":
+          genvA=strucA.globenv
+          genvB=strucB.globenv
+       else: 
+           # automatically include kits
+           genvA= environ(strucA.nmax, strucA.lmax, alchem)
+           genvB= environ(strucB.nmax, strucB.lmax, alchem)
+           for za, nza in nspeciesA:
+               for ia in xrange(nza):
+                   genvA.add(strucA.getenv(za, ia))
+           for zb, nzb in nspeciesB:
+               for ib in xrange(nzb):
+                   genvB.add(strucB.getenv(zb, ib))    
+       gk = envk(genvA, genvB, alchem)
+       
    np.set_printoptions(linewidth=500,precision=4)
 
    kk = np.zeros((nenvA,nenvB),float)
@@ -295,8 +313,7 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="sumlog", fou
    ikb = 0   
    for za, nza in nspeciesA:
       for ia in xrange(nza):
-         envA = strucA.getenv(za, ia)
-         
+         envA = strucA.getenv(za, ia)         
          ikb = 0
          for zb, nzb in nspeciesB:
             acab = alchem.getpair(za,zb)
@@ -374,8 +391,7 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="sumlog", fou
    elif mode == "permanent":
       from permanent import permanent
       perm=permanent(np.array(kk,dtype=complex))       
-      cost=-np.log(perm.real) 
-      print cost
+      return perm.real
    else: raise ValueError("Unknown global fingerprint mode ", mode)
    
    if fout != None:
@@ -497,12 +513,17 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, dmode, nocenter
    if dmode=="permanent" :
       # must fix the normalization of the similarity matrix!
       sys.stderr.write("Normalizing permanent kernels           \n")
+      nrm = np.zeros(nf,float)
       for iframe in range (0, nf):   
          sii = structk(sl[iframe], sl[iframe], alchem, periodic, mode=dmode, fout=None, kit=kit)
+         nrm[iframe]=sii
          sim[iframe,iframe]=sii
+      for iframe in range (0, nf):   
          for jframe in range (0, nf): 
-            sim[iframe,jframe]-=0.5*sii
-            sim[jframe,iframe]-=0.5*sii
+            sim[iframe,jframe]*=1.0/np.sqrt(nrm[iframe]*nrm[jframe])
+            sim[iframe,jframe]=1-sim[iframe,jframe]
+            if sim[iframe,jframe]<0: sim[iframe,jframe]=-np.sqrt(-sim[iframe,jframe])
+            else: sim[iframe,jframe]=np.sqrt(2*sim[iframe,jframe])
       
    #print "final check", -np.log( np.dot( pdummy[6][0], pdummy[6][0] ) ), -np.log( np.dot( pdummy[6][0], pdummy[1][0] ) )
    print "# Similarity matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Distance: %s  Ignored_Z: %s  Ignored_Centers_Z: %s" % (filename, coff, nd, ld, gs, mu, centerweight, periodic, dmode, str(noatom), str(nocenter))
