@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 import quippy
 import sys, time
+from random import randint
 from multiprocessing import Process, Value, Array
 import argparse
 from lap.lap import best_pairs
 from glosim import *
 import numpy as np
-def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, dmode, nocenter, noatom, nprocs, verbose=False, envij=None):
+def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, dmode, nocenter, noatom, nprocs, verbose=False, envij=None,minmax=False,nlandmark=0):
    
    print >> sys.stderr, "Reading input file", filename
    al = quippy.AtomsList(filename);
@@ -47,17 +48,73 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, dmode, nocenter
    nf = len(sl)   
       
    print >> sys.stderr, "Computing distance matrix"
-              
-   sim=np.zeros((nf,nf))
    
-   if dmode=="average":
+   if (minmax):
+     print >> sys.stderr, "##### FARTHEST POINT SAMPLING ######"
+     print >> sys.stderr, "Selecting",nlandmark,"Frames from",nf, "Frames"
+     print >> sys.stderr, "##### Additional output files=sim-rect.dat, landmarks.xyz ######"
+     
+     m=nlandmark
+     sim=np.zeros((m,m))
+     sim_rect=np.zeros((m,nf))
+     dist_list=[]
+     landmarks=[]
+     landxyz=quippy.AtomsWriter("landmarks.xyz")
+     fsim=open("sim-rect.dat","w")
+     iframe=randint(0,nf-1)
+     iland=0
+     landmarks.append(iframe)
+     landxyz.write(al[iframe])
+     for jframe in range(nf):
+       if verbose:
+         fij = open("environ-"+str(iframe)+"-"+str(jframe)+".dat", "w")
+       else: fij = None    
+       sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=dmode, fout=fij)
+       sim_rect[iland][jframe]=sij
+       dist_list.append(sij)
+     for x in sim_rect[iland][:]:
+       fsim.write("%8.4e " %(x))
+     fsim.write("\n")
+     maxd=0.0
+     for iland in range(1,m):
+       maxd=0.0
+       for iframe in range(nf):
+         if(dist_list[iframe]>maxd):
+            maxd=dist_list[iframe]
+            maxj=iframe
+       landmarks.append(maxj)
+       landxyz.write(al[maxj])
+       iframe=maxj
+       for jframe in range(nf):
+         if verbose:
+           fij = open("environ-"+str(iframe)+"-"+str(jframe)+".dat", "w")
+         else: fij = None
+         sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=dmode, fout=fij)
+         sim_rect[iland][jframe]=sij
+         if(sij<dist_list[jframe]): dist_list[jframe]=sij
+         	   
+       for x in sim_rect[iland][:]:
+        fsim.write("%8.4e " %(x))
+       fsim.write("\n")
+       sys.stderr.write("Matrix row %d                           \r" % (iland))
+     sys.stderr.write("Indices of the selected land marks \n")
+     for iland in range(m):
+       sys.stderr.write(" %d \n" % (landmarks[iland]))
+       for jland in range(iland):
+          sim[iland][jland]=sim[jland][iland]=sim_rect[iland][landmarks[jland]]
+ 
+
+   else:           
+    sim=np.zeros((nf,nf))
+   
+    if dmode=="average":
       # use quick & dirty global fingerprints to compute distances
       for iframe in range (0, nf):      
          for jframe in range(0,iframe):
             sij = -np.log(gstructk(sl[iframe], sl[jframe], alchem))
             sim[iframe][jframe]=sim[jframe][iframe]=sij
          sys.stderr.write("Matrix row %d                           \r" % (iframe))
-   else:
+    else:
       if (nprocs<=1):
          # no multiprocess
          for iframe in range (0, nf):   
@@ -97,7 +154,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, dmode, nocenter
             for jframe in range(0,iframe):
                sim[iframe,jframe]=sim[jframe,iframe]=psim[iframe*nf+jframe]
    
-   if dmode=="permanent" :
+    if dmode=="permanent" :
       # must fix the normalization of the similarity matrix!
       sys.stderr.write("Normalizing permanent kernels           \n")
       for iframe in range (0, nf):   
@@ -109,6 +166,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, dmode, nocenter
       
    #print "final check", -np.log( np.dot( pdummy[6][0], pdummy[6][0] ) ), -np.log( np.dot( pdummy[6][0], pdummy[1][0] ) )
    print "# Similarity matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Distance: %s  Ignored_Z: %s  Ignored_Centers_Z: %s" % (filename, coff, nd, ld, gs, mu, centerweight, periodic, dmode, str(noatom), str(nocenter))
+   if (minmax):nf=nlandmark
    for iframe in range(0,nf):
       for x in sim[iframe][0:nf]:
          print x,
@@ -135,7 +193,7 @@ if __name__ == '__main__':
       parser.add_argument("--average",  action="store_true", help="Use average fingerprints to compute similarity")      
       parser.add_argument("--np", type=int, default='1', help="Use multiple processes to compute the similarity matrix")
       parser.add_argument("--ij", type=str, default='', help="Compute and print diagnostics for the environment similarity between frames i,j (e.g. --ij 3,4)")
-	   
+      parser.add_argument("--minmax", type=int,default='0',help="Use farthest point sampling method to select n landmarks. std output is n x n matrix. The n x N rectangular matrix is stored in file sim-rect.dat and the selected landmark frames are stored in landmarks.xyz file") 	   
 	   
 	   
       args = parser.parse_args()
@@ -171,5 +229,8 @@ if __name__ == '__main__':
          envij=None
       else:
          envij=tuple(map(int,args.ij.split(",")))
+      if (args.minmax > 0):
+           minmax=True
+      else: minmax=False
 
-      main(args.filename, nd=args.n, ld=args.l, coff=args.c, gs=args.g, mu=args.mu, centerweight=args.cw, periodic=args.periodic, dmode=dmode, noatom=noatom, nocenter=nocenter, nprocs=args.np, verbose=args.verbose, envij=envij)
+      main(args.filename, nd=args.n, ld=args.l, coff=args.c, gs=args.g, mu=args.mu, centerweight=args.cw, periodic=args.periodic, dmode=dmode, noatom=noatom, nocenter=nocenter, nprocs=args.np, verbose=args.verbose, envij=envij,minmax=minmax,nlandmark=args.minmax)

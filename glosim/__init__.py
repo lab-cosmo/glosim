@@ -387,7 +387,7 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="sumlog", fou
       fout.close()
    
    if cost<0.0: 
-      print >> sys.stderr, "\n WARNING: negative squared distance ", cost, "\n"
+    #  print >> sys.stderr, "\n WARNING: negative squared distance ", cost, "\n"
       return 0.0 
    else: return np.sqrt(cost)
 
