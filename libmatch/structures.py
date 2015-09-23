@@ -240,7 +240,7 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="sumlog", fou
    elif mode == "permanent":
       from permanent import permanent
       perm=permanent(np.array(kk,dtype=complex))       
-      return perm.real/np.math.factorial(nenv)
+      return perm.real/np.math.factorial(nenv)/nenv
    else: raise ValueError("Unknown global fingerprint mode ", mode)
    
    if fout != None:
