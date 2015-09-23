@@ -124,6 +124,18 @@ def gstructk(strucA, strucB, alchem=alchemy(), periodic=False):
    return envk(strucA.globenv, strucB.globenv, alchem) 
 
 def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="sumlog", fout=None):
+   # computes the SOAP similarity KERNEL between two structures by combining atom-centered kernels
+   # possible kernel modes include:
+   #   average :  scalar product between averaged kernels
+   #   match:     best-match hungarian kernel
+   #   permanent: average over all permutations
+      
+   # average kernel. quick & easy!   
+   if mode=="average":
+       genvA=strucA.globenv
+       genvB=strucB.globenv        
+       return envk(genvA, genvB, alchem)
+
    nenv = 0
    
    if periodic: # replicate structures to match structures of different periodicity
@@ -147,14 +159,8 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="sumlog", fou
          nspecies.append((z,nz)) 
          nenv += nz
       nenvA = nenvB = nenv
-      nspeciesA = nspeciesB = nspecies
-      
-   if mode=="average":
-       genvA=strucA.globenv
-       genvB=strucB.globenv
-        
-       gk = envk(genvA, genvB, alchem)
-       
+      nspeciesA = nspeciesB = nspecies   
+         
    np.set_printoptions(linewidth=500,precision=4)
 
    kk = np.zeros((nenvA,nenvB),float)
@@ -207,40 +213,16 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="sumlog", fou
    # Now we have the matrix of scalar products. 
    # We can first find the optimal scalar product kernel
    # we must find the maximum "cost"
-   if mode == "logsum":
+   if mode == "match":
       hun=best_pairs(1.0-kk)
-   
-      dotcost = 0.0
+      cost = 0.0
       for pair in hun:
-         dotcost+=kk[pair[0],pair[1]]
-      cost = -np.log(dotcost/nenv)
-   elif mode == "kdistance" or mode == "nkdistance":
-      dk = 2*(1-kk)
-      hun=best_pairs(dk)
-      distcost = 0.0
-      for pair in hun:
-         distcost+=dk[pair[0],pair[1]]
-      if periodic or mode == "nkdistance":
-         # kdistance is extensive, nkdistance (or periodic matching) is intensive
-         distcost*=1.0/nenv
-      cost = distcost # this is really distance ^ 2      
-   elif mode == "sumlog":   
-      dk = (kk +1e-100)/(1+1e-100)  # avoids inf...
-      dk = -np.log(dk)
-      #print dk
-      hun=best_pairs(dk)
-      distcost = 0.0
-      for pair in hun:
-         distcost+=dk[pair[0],pair[1]]
-      if periodic:    
-         # here we normalize by number of environments only when doing 
-         # periodic matching, so that otherwise the distance is extensive
-         distcost*=1.0/nenv
-      cost = distcost
+         cost+=kk[pair[0],pair[1]]
+      cost = cost/nenv
    elif mode == "permanent":
       from permanent import permanent
       perm=permanent(np.array(kk,dtype=complex))       
-      return perm.real/np.math.factorial(nenv)/nenv
+      cost = perm.real/np.math.factorial(nenv)/nenv
    else: raise ValueError("Unknown global fingerprint mode ", mode)
    
    if fout != None:
@@ -248,8 +230,5 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="sumlog", fou
       for pair in hun:
          fout.write("%d  %d  \n" % (pair[0],pair[1]) )
       fout.close()
-   
-   if cost<0.0: 
-    #  print >> sys.stderr, "\n WARNING: negative squared distance ", cost, "\n"
-      return 0.0 
-   else: return np.sqrt(cost)
+         
+   return cost
