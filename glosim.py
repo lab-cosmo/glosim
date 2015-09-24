@@ -91,8 +91,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nocenter
     for iframe in range (0, nf):           
         sii = structk(sl[iframe], sl[iframe], alchem, periodic, mode=kmode, fout=None)        
         nrm[iframe]=sii        
-            
-   
+    
     if (nlandmark>0):
         print >> sys.stderr, "##### FARTHEST POINT SAMPLING ######"
         print >> sys.stderr, "Selecting",nlandmark,"Frames from",nf, "Frames"
@@ -123,6 +122,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nocenter
                     maxj=jframe
             landmarks.append(maxj)
             
+            sys.stderr.write("Landmark %5d    maxd %f                          \r" % (iland, maxd))
             iframe=maxj
             for jframe in range(nf):                
                 sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=kmode, fout=None)
@@ -176,16 +176,6 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nocenter
                 fsim.write("\n")   
             fsim.close()
             
-       #for x in sim_rect[iland][:]:
-       # fsim.write("%8.4e " %(x))
-       #fsim.write("\n")
-       # sys.stderr.write("Matrix row %d                           \r" % (iland))
-     #sys.stderr.write("Indices of the selected land marks \n")
-     #for iland in range(m):
-     #  sys.stderr.write(" %d \n" % (landmarks[iland]))
-     #  for jland in range(iland):
-     #     sim[iland][jland]=sim[jland][iland]=sim_rect[iland][landmarks[jland]]
-     #nf=m
     else:
         sim=np.zeros((nf,nf))
 
