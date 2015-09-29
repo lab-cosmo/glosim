@@ -27,9 +27,9 @@ def best_cost(matrix):
      cost+=matrix[pair[0],pair[1]]
   return cost
 
+myinf = 1e2
 def main1(filename):
     mtx=np.loadtxt(filename)
-    myinf= 1e100
     
     
     if mtx.shape[0] != mtx.shape[1]:
@@ -38,16 +38,17 @@ def main1(filename):
         for i in range(mm/mtx.shape[0]):
             for j in range(mm/mtx.shape[1]):
                 nmtx[i*mtx.shape[0]:(i+1)*mtx.shape[0],j*mtx.shape[1]:(j+1)*mtx.shape[1]] = mtx
-    
+    else: nmtx = mtx
+ 
     print nmtx                  
     bp = best_pairs(nmtx)
     tc = 0
     
     for p in bp:
         pc = nmtx[p[0],p[1]]
-        print p, pc
+        print "MATCH1: ", p, p[0]%mtx.shape[0], p[1]%mtx.shape[1], pc
         if pc<myinf: tc += nmtx[p[0],p[1]]
-    print "reference cost: ", tc
+    print "***** reference cost: ", tc
 
 def gcd(a,b):
    if (b>a): a,b = b, a
@@ -60,14 +61,29 @@ def lcm(a,b):
    return a*b/gcd(b,a)
    
 def main(filename):
-    mtx=np.loadtxt(filename)
-    myinf= 1e100
+    mbase=np.loadtxt(filename)
     notlast=True
     final_cost=0.0
-    nA, nB = mtx.shape
+    nA, nB = mbase.shape
     elA = np.asarray(range(nA))
     elB = np.asarray(range(nB))
-    while notlast:
+    while (len(elA)+nA) <= len(elB): elA = np.asarray(list(elA)+range(nA))
+    while (len(elB)+nB) <= len(elA): elB = np.asarray(list(elB)+range(nB))
+    npairs = lcm(nA,nB)
+    selpairs = 0
+    tc = 0
+    while len(elA)>0 or len(elB)>0:
+      if len(elA)==0 : 
+          elA = np.asarray(range(nA))
+          if (selpairs+nB<=npairs): elB = np.asarray(list(elB)+range(nB))
+      if len(elB)==0 : 
+          elB = np.asarray(range(nB))
+          if (selpairs+nA<=npairs): elA = np.asarray(list(elA)+range(nA))
+      while (len(elA)+nA) <= len(elB): elA = np.asarray(list(elA)+range(nA))
+      while (len(elB)+nB) <= len(elA): elB = np.asarray(list(elB)+range(nB))
+
+      mtx = mbase[np.ix_(elA, elB)]
+
       if mtx.shape[0] > mtx.shape[1]:
           mm = mtx.shape[0]
           nbuf=mtx.shape[0] - mtx.shape[1]
@@ -86,41 +102,30 @@ def main(filename):
           for i in xrange(mtx.shape[0]):
               for j in xrange(mtx.shape[1]):
                   nmtx[i,j] = mtx[i,j]
-         
-      
-      print nmtx                  
+      print " Running an iteration "
+
+      print elA
+      print elB
       bp = best_pairs(nmtx)
-      tc = 0
-      rowlist=[]
-      collist=[]
+      rmA = []
+      rmB = [] 
+      partc = 0
       for p in bp:
           pc = nmtx[p[0],p[1]]
-          print p, pc
-          if pc<myinf: tc += nmtx[p[0],p[1]]
-          else:
-             rowlist.append(p[0])
-             collist.append(p[1])
-      print "total cost: ", tc
+          if pc<myinf: 
+             print "MATCH2", p, elA[p[0]], elB[p[1]], pc
+             selpairs += 1
+             partc += nmtx[p[0],p[1]]
+             rmA.append(p[0])
+             rmB.append(p[1])
+
+      elA = np.delete(elA, rmA)
+      elB = np.delete(elB, rmB)      
+      print "new selections: ", elA, elB
+      print "total cost: ", partc
       
-      if mtx.shape[0] > mtx.shape[1]:
-        nold=mtx.shape[1]
-        nmtx=np.zeros((len(rowlist),nold),float)
-        for i in range(nbuf):
-          for j in range(nold):
-            nmtx[i,j]=mtx[rowlist[i],j]
-        mtx=np.zeros((len(rowlist),nold))
-        mtx=nmtx
-         
-      else:
-        nold=mtx.shape[0]
-        nmtx=np.zeros((nold,nbuf),float)
-        for i in range(nold):
-          for j in range(nbuf):
-            nmtx[i,j]=mtx[i,collist[j]]
-        mtx=np.zeros((nold,nbuf))
-        mtx=nmtx
-      final_cost+=tc
-    print "Final Cost= ", final_cost
+      tc+=partc
+    print "***** Final Cost= ", tc
        
     
 if __name__ == "__main__":
