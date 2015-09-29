@@ -13,7 +13,7 @@ from multiprocessing import Process, Value, Array
 import argparse
 from random import randint
 from libmatch.environments import alchemy, environ
-from libmatch.structures import structk, gstructk, structure
+from libmatch.structures import structk, structure
 import numpy as np
 
 def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nocenter, noatom, nprocs, verbose=False, envij=None, usekit=False, kit="auto", prefix="",nlandmark=0, printsim=False):

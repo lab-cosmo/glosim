@@ -16,7 +16,8 @@ def main(fname):
       fline = ffile.readline()
       sline=map(float,fline.split())
       ik+=1
-   fmat = 0.5*(2-fmat*fmat)
+   if fmat[0,0]<1e-4: # automatic heuristic to detect if this is a distance or a kernel 
+      fmat = 0.5*(2-fmat*fmat)
    v = np.linalg.eigvalsh(fmat)
    print "finished reading"
    for i in range(len(v)):

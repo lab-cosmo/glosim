@@ -12,7 +12,7 @@ import quippy
 from lap.lap import best_pairs
 import numpy as np
 from environments import environ, alchemy, envk
-__all__ = [ "structk", "gstructk", "structure" ]
+__all__ = [ "structk", "structure" ]
 
    
 class structure:
@@ -119,9 +119,9 @@ def gcd(a,b):
 def lcm(a,b):
    return a*b/gcd(b,a)
 
-def gstructk(strucA, strucB, alchem=alchemy(), periodic=False):
-    
-   return envk(strucA.globenv, strucB.globenv, alchem) 
+#def gstructk(strucA, strucB, alchem=alchemy(), periodic=False):
+#    
+#   return envk(strucA.globenv, strucB.globenv, alchem) 
 
 def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="sumlog", fout=None):
    # computes the SOAP similarity KERNEL between two structures by combining atom-centered kernels
