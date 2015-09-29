@@ -181,7 +181,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nocenter
         for iframe in range(nf):
           for jframe in range(nf_ref):
             sij = structk(sl[iframe], sl_ref[jframe], alchem, periodic, mode=kmode, fout=None)
-            sim[iframe][jframe]=sij/np.sqrt(nrm[iframe]*nrm[jframe])
+            sim[iframe][jframe]=sij/np.sqrt(nrm[iframe]*nrm_ref[jframe])
            
         fkernel = open(prefix+"_rect.k", "w")  
         fkernel.write("# Rectangular Kernel matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s" % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)) )
