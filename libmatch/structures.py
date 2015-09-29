@@ -123,7 +123,7 @@ def lcm(a,b):
 #    
 #   return envk(strucA.globenv, strucB.globenv, alchem) 
 
-def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="sumlog", fout=None):
+def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout=None):
    # computes the SOAP similarity KERNEL between two structures by combining atom-centered kernels
    # possible kernel modes include:
    #   average :  scalar product between averaged kernels
@@ -175,10 +175,8 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="sumlog", fou
             for ib in xrange(nzb):
                envB = strucB.getenv(zb, ib)
                if alchem.mu > 0 and (strucA.ismissing(za, ia) ^ strucB.ismissing(zb, ib)):
-                  if mode == "kdistance" or mode == "nkdistance":  # includes a penalty dependent on "mu", in a way that is consistent with the definition of kernel distance
-                     kk[ika,ikb] = acab - alchem.mu/2  
-                  else:
-                     kk[ika,ikb] = np.exp(-alchem.mu) * acab 
+                   # includes a penalty dependent on "mu", in a way that is consistent with the definition of kernel distance
+                   kk[ika,ikb] = acab - alchem.mu/2                  
                else:
                   kk[ika,ikb] = envk(envA, envB, alchem) * acab
                ikb+=1
@@ -220,9 +218,13 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="sumlog", fou
          cost+=kk[pair[0],pair[1]]
       cost = cost/nenv
    elif mode == "permanent":
-      from permanent import permanent
-      perm=permanent(np.array(kk,dtype=complex))       
-      cost = perm.real/np.math.factorial(nenv)/nenv
+        try:
+            from permanent import permanent
+        except:
+            print >> sys.stderr, "Cannot compute permanent kernel without a permanent module installed in pythonpath"
+            exit()
+        perm=permanent(np.array(kk,dtype=complex))       
+        cost = perm.real/np.math.factorial(nenv)/nenv
    else: raise ValueError("Unknown global fingerprint mode ", mode)
    
    if fout != None:

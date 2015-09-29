@@ -16,8 +16,22 @@ from libmatch.environments import alchemy, environ
 from libmatch.structures import structk, structure
 import numpy as np
 
-def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nocenter, noatom, nprocs, verbose=False, envij=None, usekit=False, kit="auto", prefix="",nlandmark=0, printsim=False):
-   
+def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nocenter, noatom, nprocs, verbose=False, envij=None, usekit=False, kit="auto", prefix="",nlandmark=0, printsim=False,ref_xyz=""):
+    print >>sys.stderr, "    ___  __    _____  ___  ____  __  __ ";
+    print >>sys.stderr, "   / __)(  )  (  _  )/ __)(_  _)(  \/  )";
+    print >>sys.stderr, "  ( (_-. )(__  )(_)( \__ \ _)(_  )    ( ";
+    print >>sys.stderr, "   \___/(____)(_____)(___/(____)(_/\/\_)";
+    print >>sys.stderr, "                                        ";
+    print >>sys.stderr, "                                         ";
+#    print >>sys.stderr, "             (         )      (      (        *     ";
+#    print >>sys.stderr, "    (        )\ )   ( /(      )\ )   )\ )   (  \`    ";
+#    print >>sys.stderr, "    )\ )    (()/(   )\())    (()/(  (()/(   )\))(   ";
+#    print >>sys.stderr, "   (()/(     /(_)) ((_)\      /(_))  /(_)) ((_)()\  ";
+#    print >>sys.stderr, "    /(_))_  (_))     ((_)    (_))   (_))   (_()((_) ";
+#    print >>sys.stderr, "   (_)) __| | |     / _ \    / __|  |_ _|  |  \/  | ";
+#    print >>sys.stderr, "     | (_ | | |__  | (_) |   \__ \   | |   | |\/| | ";
+#    print >>sys.stderr, "      \___| |____|  \___/    |___/  |___|  |_|  |_| ";
+#    print >>sys.stderr, "                                                    ";
     filename = filename[0]
     # sets a few defaults 
     if prefix=="": prefix=filename
@@ -25,7 +39,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nocenter
     # reads input file using quippy
     print >> sys.stderr, "Reading input file", filename
     al = quippy.AtomsList(filename);
-   
+    print >> sys.stderr, len(al.n) , " Configurations Read"
     print >> sys.stderr, "Computing SOAPs"
 
     # sets alchemical matrix
@@ -82,8 +96,8 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nocenter
           
         iframe +=1; 
       
-    nf = len(sl)   
-            
+    nf = len(sl)  
+    nf_ref=nf 
     print >> sys.stderr, "Computing kernel matrix"
     # must fix the normalization of the similarity matrix!
     sys.stderr.write("Computing kernel normalization           \n")
@@ -91,8 +105,107 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nocenter
     for iframe in range (0, nf):           
         sii = structk(sl[iframe], sl[iframe], alchem, periodic, mode=kmode, fout=None)        
         nrm[iframe]=sii        
-    
-    if (nlandmark>0):
+
+    # If ref landmarks are given and rectangular matrix is the only desired output             
+    if (ref_xyz !=""):
+        print >> sys.stderr, "================================REFERENCE XYZ FILE GIVEN=====================================\n",
+        print >> sys.stderr, "Only Rectangular Matrix Containing Distances Between Two Sets of Input Files Will be Computed.\n",
+        print >> sys.stderr, "Reading Referance xyz file: ", ref_xyz
+        alref = quippy.AtomsList(ref_xyz);
+        print >> sys.stderr, len(alref.n) , " Configurations Read"
+        print >> sys.stderr, "Computing SOAPs"
+        # sets alchemical matrix
+        alchem = alchemy(mu=mu)
+        sl_ref = []
+        iframe = 0
+        if verbose:
+            qlogref=quippy.AtomsWriter("log_ref.xyz")
+            slogref=open("log_ref.soap", "w")
+
+        # determines reference kit    
+        if usekit:
+            if kit == "auto":
+                kit = {}
+                iframe=0
+                for at in alref:
+                    if envij == None or iframe in envij:
+                        sp = {}
+                        for z in at.z:
+                            if z in noatom or z in nocenter: continue
+                            if z in sp: sp[z]+=1
+                            else: sp[z] = 1
+                        for s in sp:
+                            if not s in kit:
+                                kit[s]=sp[s]
+                            else:
+                                kit[s]=max(kit[s], sp[s])
+                    iframe+=1
+            iframe=0
+            print >> sys.stderr, "Using kit: ", kit
+        else: kit=None
+
+        for at in alref:
+            if envij == None or iframe in envij:
+                sys.stderr.write("Frame %d                              \r" %(iframe) )
+                if verbose: qlogref.write(at)
+
+                # parses one of the structures, topping up atoms with isolated species if requested
+                si = structure(alchem)
+                si.parse(at, coff, nd, ld, gs, centerweight, nocenter, noatom, kit = kit)
+                sl_ref.append(si)
+                if verbose:
+                    slog.write("# Frame %d \n" % (iframe))
+                    for sp, el in si.env.iteritems():
+                        ik=0
+                        for ii in el:
+                            slogref.write("# Species %d Environment %d \n" % (sp, ik))
+                            ik+=1
+                            for p, s in ii.soaps.iteritems():
+                                slogref.write("%d %d   " % p)
+                                for si in s:
+                                    slogref.write("%8.4e " %(si))
+                                slogref.write("\n")
+
+            iframe +=1;
+
+        nf_ref = len(sl_ref)
+        print >> sys.stderr, "Computing kernel matrix"
+        # must fix the normalization of the similarity matrix!
+        sys.stderr.write("Computing kernel normalization           \n")
+        nrm_ref = np.zeros(nf_ref,float)
+        for iframe in range (0, nf_ref):           
+            sii = structk(sl_ref[iframe], sl_ref[iframe], alchem, periodic, mode=kmode, fout=None)        
+            nrm_ref[iframe]=sii        
+
+        sim = np.zeros((nf,nf_ref))
+        for iframe in range(nf):
+          for jframe in range(nf_ref):
+            sij = structk(sl[iframe], sl_ref[jframe], alchem, periodic, mode=kmode, fout=None)
+            sim[iframe][jframe]=sij/np.sqrt(nrm[iframe]*nrm[jframe])
+           
+        fkernel = open(prefix+"_rect.k", "w")  
+        fkernel.write("# Rectangular Kernel matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s" % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)) )
+        if (usekit): fkernel.write( " [ Using reference kit: %s\n" % (str(kit)) )
+        else: fkernel.write("\n")
+        for iframe in range(0,nf):
+            for x in sim[iframe][0:nf_ref]:
+                fkernel.write("%16.8e " % (x))
+            fkernel.write("\n")   
+            
+        if printsim:
+            fsim = open(prefix+"_rect.sim", "w")  
+            fsim.write("# Rectangular distance matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s" % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)) )
+            if (usekit): fsim.write( " [ Using reference kit: %s\n" % (str(kit)) )
+            else: fsim.write("\n")
+            for iframe in range(0,nf):
+                for x in sim[iframe][0:nf_ref]:
+                    fsim.write("%16.8e " % (np.sqrt(max(2-2*x,0))))
+                fsim.write("\n")   
+
+#=============================================================================
+            
+   
+    elif (nlandmark>0):
         print >> sys.stderr, "##### FARTHEST POINT SAMPLING ######"
         print >> sys.stderr, "Selecting",nlandmark,"Frames from",nf, "Frames"
         print >> sys.stderr, "##### Additional output files=sim-rect.dat, landmarks.xyz ######"
@@ -262,6 +375,7 @@ if __name__ == '__main__':
       parser.add_argument("--ij", type=str, default='', help="Compute and print diagnostics for the environment similarity between frames i,j (e.g. --ij 3,4)")
       parser.add_argument("--nlandmarks", type=int,default='0',help="Use farthest point sampling method to select n landmarks. std output is n x n matrix. The n x N rectangular matrix is stored in file sim-rect.dat and the selected landmark frames are stored in landmarks.xyz file")     
       parser.add_argument("--prefix", type=str, default='', help="Prefix for output files (defaults to input file name)")
+      parser.add_argument("--refxyz", type=str, default='', help="ref xyz file if you want to compute the rectangular matrix contaning distances from ref configurations")
       
            
       args = parser.parse_args()
@@ -285,4 +399,4 @@ if __name__ == '__main__':
       else:
          envij=tuple(map(int,args.ij.split(",")))
                
-      main(args.filename, nd=args.n, ld=args.l, coff=args.c, gs=args.g, mu=args.mu, centerweight=args.cw, periodic=args.periodic, usekit=args.usekit, kit=args.kit, kmode=args.kernel, noatom=noatom, nocenter=nocenter, nprocs=args.np, verbose=args.verbose, envij=envij, prefix=args.prefix, nlandmark=args.nlandmarks, printsim=args.distance)
+      main(args.filename, nd=args.n, ld=args.l, coff=args.c, gs=args.g, mu=args.mu, centerweight=args.cw, periodic=args.periodic, usekit=args.usekit, kit=args.kit, kmode=args.kernel, noatom=noatom, nocenter=nocenter, nprocs=args.np, verbose=args.verbose, envij=envij, prefix=args.prefix, nlandmark=args.nlandmarks, printsim=args.distance,ref_xyz=args.refxyz)
