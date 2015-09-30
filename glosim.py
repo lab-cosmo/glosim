@@ -52,15 +52,20 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nocenter
              nb=al[jframe].n
              ncom=lcm(na,nb)
              if ncom >nsafe and na>nb and iframe not in rmlist:rmlist.append(iframe)
-         print >> sys.stderr,"frames to remove", rmlist
-         rmlist=sorted(rmlist,reverse=True)
-         for iframe in rmlist:
+         if len(rmlist)>0:
+           print >> sys.stderr,"frames to remove", rmlist
+           qrm=quippy.AtomsWriter(prefix+"_removed.xyz")
+           for iframe in rmlist:
+             qrm.write(al[iframe])
+
+           rmlist=sorted(rmlist,reverse=True)
+           for iframe in rmlist:
        #     print >>sys.stderr, "Deleting",iframe
-            del al[iframe]
-         qsafe=quippy.AtomsWriter(prefix+"_safe.xyz")
-         for at in al:
-           qsafe.write(at)
-         print >>sys.stderr, "New Number of Frames",len(al.n)
+              del al[iframe]
+           qsafe=quippy.AtomsWriter(prefix+"_safe.xyz")
+           for at in al:
+             qsafe.write(at)
+           print >>sys.stderr, "New Number of Frames",len(al.n)
       else:  
          rmlist=[]
          rmlist_ref=[]
@@ -73,18 +78,22 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nocenter
                  nb=alref[jframe].n
                  ncom=lcm(na,nb)
                  if ncom >nsafe  and  jframe not in rmlist_ref: rmlist_ref.append(jframe)
-           if len(rmlist_ref)>0:print >> sys.stderr,"frames to remove from ref", rmlist_ref
-           rmlist_ref=sorted(rmlist_ref,reverse=True)
-           for iframe in rmlist_ref:
-        #      print >>sys.stderr, "Deleting",iframe
-              del alref[iframe]
-           if ref_xyz.endswith('.xyz'): ref_xyz=ref_xyz[:-4]
-           qsafe=quippy.AtomsWriter(ref_xyz+"_safe.xyz")
-           for at in alref:
-              qsafe.write(at)
+           if len(rmlist_ref)>0:
+             print >> sys.stderr,"frames to remove from ref", rmlist_ref
+             if ref_xyz.endswith('.xyz'): ref_xyz=ref_xyz[:-4]
+             qrm=quippy.AtomsWriter(ref_xyz+"_removed.xyz")
+             for iframe in rmlist_ref:
+                qrm.write(alref[iframe])
+             rmlist_ref=sorted(rmlist_ref,reverse=True)
+             for iframe in rmlist_ref:
+        #        print >>sys.stderr, "Deleting",iframe
+                del alref[iframe]
+             qsafe=quippy.AtomsWriter(ref_xyz+"_safe.xyz")
+             for at in alref:
+                qsafe.write(at)
  
-           print >>sys.stderr, "New Number of Frames",len(alref.n)
-         
+             print >>sys.stderr, "New Number of Frames",len(alref.n)
+           
   
          else: 
            for  iframe in range (len(alref.n)):
@@ -95,15 +104,19 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nocenter
                  nb=al[jframe].n
                  ncom=lcm(na,nb)
                  if ncom >nsafe  and  jframe not in rmlist: rmlist.append(jframe)
-           if len(rmlist)>0:print >> sys.stderr,"frames to remove from src", rmlist
-           rmlist=sorted(rmlist,reverse=True)
-           for iframe in rmlist:
-         #     print >>sys.stderr, "Deleting",iframe
-              del al[iframe]
-           qsafe=quippy.AtomsWriter(prefix+"_safe.xyz")
-           for at in al:
-             qsafe.write(at)
-           print >>sys.stderr, "New Number of Frames",len(al.n)
+           if len(rmlist)>0:
+             print >> sys.stderr,"frames to remove from src", rmlist
+             qrm=quippy.AtomsWriter(prefix+"_removed.xyz")
+             for iframe in rmlist:
+                qrm.write(al[iframe])
+             rmlist=sorted(rmlist,reverse=True)
+             for iframe in rmlist:
+         #       print >>sys.stderr, "Deleting",iframe
+                del al[iframe]
+             qsafe=quippy.AtomsWriter(prefix+"_safe.xyz")
+             for at in al:
+               qsafe.write(at)
+             print >>sys.stderr, "New Number of Frames",len(al.n)
 
 #    return
     print >> sys.stderr, "Computing SOAPs"
@@ -367,16 +380,9 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nocenter
                     if verbose:
                         fij = open(prefix+".environ-"+str(iframe)+"-"+str(jframe)+".dat", "w")
                     else: fij = None
-                    if periodic:
-                      sys.stderr.write("comparing %3d, atoms cell with  %3d atoms cell: lcm: %3d \n" % (iframe,jframe, lcm(sl[iframe].nenv,sl[jframe].nenv))) 
-                      if  lcm(sl[iframe].nenv,sl[jframe].nenv) >5000: 
-                         sim[iframe][jframe]=1E6
-                      else: 
-                         sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=kmode, fout=fij)          
-                         sim[iframe][jframe]=sim[jframe][iframe]=sij/np.sqrt(nrm[iframe]*nrm[jframe])
-                    else:
-                      sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=kmode, fout=fij)          
-                      sim[iframe][jframe]=sim[jframe][iframe]=sij/np.sqrt(nrm[iframe]*nrm[jframe])
+                    if periodic: sys.stderr.write("comparing %3d, atoms cell with  %3d atoms cell: lcm: %3d \r" % (iframe,jframe, lcm(sl[iframe].nenv,sl[jframe].nenv))) 
+                    sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=kmode, fout=fij)          
+                    sim[iframe][jframe]=sim[jframe][iframe]=sij/np.sqrt(nrm[iframe]*nrm[jframe])
                 sys.stderr.write("Matrix row %d                           \r" % (iframe))
         else:      
             # multiple processors
