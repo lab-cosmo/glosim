@@ -27,30 +27,6 @@ def best_cost(matrix):
      cost+=matrix[pair[0],pair[1]]
   return cost
 
-myinf = 1e2
-def main1(filename):
-    mtx=np.loadtxt(filename)
-    
-    
-    if mtx.shape[0] != mtx.shape[1]:
-        mm = lcm(mtx.shape[0], mtx.shape[1])
-        nmtx = np.zeros((mm,mm), float)        
-        for i in range(mm/mtx.shape[0]):
-            for j in range(mm/mtx.shape[1]):
-                nmtx[i*mtx.shape[0]:(i+1)*mtx.shape[0],j*mtx.shape[1]:(j+1)*mtx.shape[1]] = mtx
-    else: nmtx = mtx
- 
-    print nmtx                  
-    bp = best_pairs(nmtx)
-    tc = 0
-    
-    for p in bp:
-        pc = nmtx[p[0],p[1]]
-        print "MATCH1: ", p, p[0]%mtx.shape[0], p[1]%mtx.shape[1], pc
-        if pc<myinf: tc += nmtx[p[0],p[1]]
-    print "***** reference cost: ", tc
-    return tc
-
 def gcd(a,b):
    if (b>a): a,b = b, a
    
@@ -60,6 +36,128 @@ def gcd(a,b):
    
 def lcm(a,b):
    return a*b/gcd(b,a)
+
+def lcm_index(x, y):
+    z=lcm(x,y)
+    
+    ix = np.asarray(xrange(x),int)
+    iy = np.asarray(xrange(y),int)
+    
+    lx = np.zeros(z,int)
+    ly = np.zeros(z,int)
+    for i in xrange(z/x):
+        lx[i*x:(i+1)*x]=ix
+    for i in xrange(z/y):
+        ly[i*y:(i+1)*y]=iy
+    return (lx,ly)
+       
+def lcm_matrix(m):
+    x,y = m.shape
+    if x==y: return m   # no-op
+    
+    lx, ly = lcm_index(x,y)
+    return m[np.ix_(lx, ly)]
+
+myinf = 1e2
+def main1(filename):
+    mtx=np.loadtxt(filename)
+    
+    
+    #~ if mtx.shape[0] != mtx.shape[1]:
+        #~ mm = lcm(mtx.shape[0], mtx.shape[1])
+        #~ nmtx = np.zeros((mm,mm), float)        
+        #~ for i in range(mm/mtx.shape[0]):
+            #~ for j in range(mm/mtx.shape[1]):
+                #~ nmtx[i*mtx.shape[0]:(i+1)*mtx.shape[0],j*mtx.shape[1]:(j+1)*mtx.shape[1]] = mtx
+    #~ else: nmtx = mtx
+ #~ 
+    nmtx = lcm_matrix(mtx)
+          
+    bp = best_pairs(nmtx)
+    tc = 0
+    
+    for p in bp:
+        pc = nmtx[p[0],p[1]]
+        #print "MATCH1: ", p, p[0]%mtx.shape[0], p[1]%mtx.shape[1], pc
+        if pc<myinf: tc += nmtx[p[0],p[1]]
+    print "***** reference cost: ", tc
+    return tc
+
+def main2(filename):
+    mtx=np.loadtxt(filename)
+        
+    if mtx.shape[0] != mtx.shape[1]:
+        mm = lcm(mtx.shape[0], mtx.shape[1])
+        nmtx = np.zeros((mm,mm), float)        
+        for i in range(mm/mtx.shape[0]):
+            for j in range(mm/mtx.shape[1]):
+                nmtx[i*mtx.shape[0]:(i+1)*mtx.shape[0],j*mtx.shape[1]:(j+1)*mtx.shape[1]] = mtx
+    else: 
+        nmtx = mtx
+        mm = mtx.shape[0]
+    xm, ym = mtx.shape 
+    mm = lcm(xm, ym)
+    lx, ly = lcm_index(xm,ym)
+    
+    sm = max(xm, ym)
+        
+    tc = 0    
+    bcl = []
+    blocks = []    
+    for i in range(mm/sm):
+        blx=list(lx[range(i*sm,(i+1)*sm)])
+        bly=list(ly[range(i*sm,(i+1)*sm)])        
+        blocks.append((blx,bly))
+        subm = mtx[np.ix_(blx,bly)]
+        
+        #print subm
+        bp = best_pairs(subm)
+      
+        bc = 0
+        for p in bp:
+            pc = subm[p[0],p[1]]
+            bc += pc  
+        bcl.append(bc)
+    
+    merged = True
+    while merged:
+        # sort blocks according to size (so we always try to merge first small blocks)
+        skey = [ len(blocks[i][0]) for i in range(len(bcl)) ]
+        print skey
+        sind = np.argsort(np.asarray(skey))    
+        bcl = [ bcl[i] for i in sind]
+        blocks = [ blocks[i] for i in sind]
+        print "sorted costs", bcl
+        print "average costs", np.asarray(bcl)/np.asarray(skey)[sind]
+        print "estimate cost ", sum(bcl), len(blocks)
+        for i in xrange(len(blocks)):
+            merged = False
+            for j in range(i):
+                blx = blocks[i][0]+blocks[j][0]
+                bly = blocks[i][1]+blocks[j][1]
+                subm = mtx[np.ix_(blx,bly)]
+                bp = best_pairs(subm)
+          
+                bc = 0
+                for p in bp:
+                    pc = subm[p[0],p[1]]
+                    bc += pc  
+                if bc *(1+1e-5)< (bcl[i]+bcl[j]):
+                    print "MERGING %d,%d: %f+%f=%f >%f\n" %(i,j,bcl[i],bcl[j],bcl[i]+bcl[j],bc)
+                    blocks.pop(i)
+                    blocks.pop(j)
+                    blocks.append((blx, bly))
+                    bcl.pop(i)
+                    bcl.pop(j)
+                    bcl.append(bc)                    
+                    merged = True
+                    break
+            if merged: break  
+    
+    print "final cost", sum(bcl), len(bcl)
+    return sum(bcl)
+
+
 
 def pad(mtx, inf):
     nAB = max(mtx.shape)
@@ -89,14 +187,15 @@ def main(filename):
             addB = []
             while len(elA)+len(addA)<len(elB) and cA.sum()>0:
                 for i in xrange(nA):
-                    if cA[i]==max(cA):
+                    # print len(elA)+len(addA), len(elB), cA.min()
+                    if cA[i]==cA[cA.nonzero()].min():
                         addA.append(i)                        
                         cA[i]-=1
                         if len(elA)+len(addA)==len(elB): 
                             break
             while len(elB)+len(addB)<len(elA) and cB.sum()>0:
                 for i in xrange(nB):
-                    if cB[i]==max(cB):
+                    if cB[i]==cB[cB.nonzero()].min():
                         addB.append(i)                        
                         cB[i]-=1
                         if len(elB)+len(addB)==len(elA): 
@@ -106,7 +205,7 @@ def main(filename):
             mtx = mbase[np.ix_(elA, elB)]
             nmtx = pad(mtx, myinf)
             print nmtx
-            print " Running an iteration "
+            print " Running an iteration ", len(elA)
             print elA
             print elB
           
@@ -119,24 +218,23 @@ def main(filename):
               pc = nmtx[p[0],p[1]]
               if pc<myinf: 
                  rbp.append((elA[p[0]], elB[p[1]]))
-                 print "MATCH2", p,rbp[-1], pc
+                 # print "MATCH2", p,rbp[-1], pc
                  pcost += nmtx[p[0],p[1]]
                  rmA.append(p[0])
                  rmB.append(p[1])
             
-            fsame = True
-            nsame = 0
-            for p in prevbp:
-                if not p in rbp:
-                    fsame = False
-                    break
-                nsame+=1
-            print rbp
-            print "matching assignments", nsame, " out of ", len(prevbp)
-            if fsame and prevbp!=[]: 
-                print "*** ASSIGNMENTS DID NOT CHANGE!"
-                # roll back and update stuff
-                
+            #~ fsame = True
+            #~ nsame = 0
+            #~ for p in prevbp:
+                #~ if not p in rbp:
+                    #~ fsame = False
+                    #~ break
+                #~ nsame+=1
+            #~ print rbp
+            #~ print "matching assignments", nsame, " out of ", len(prevbp)
+            #~ if fsame and prevbp!=[]: 
+                #~ print "*** ASSIGNMENTS DID NOT CHANGE!"
+                #~ # roll back and update stuff
                 
             prevbp = rbp 
              
@@ -167,7 +265,7 @@ def main(filename):
                 elA = np.asarray(list(elA)+addA)
                 elB = np.asarray(list(elB)+addB)
             print "new selections: ", len(elA), len(elB), elA, elB
-                        
+            
         print "total cost: ", pcost
       
     print "***** Final Cost= ", tcost
@@ -180,9 +278,9 @@ if __name__ == "__main__":
     ref=main1(*sys.argv[1:])
     tref = time.time()-st
     st=time.time()
-    new=main(*sys.argv[1:])
+    new=main2(*sys.argv[1:])
     tnew = time.time()-st
     
     print "Reference:  ", ref, " time: ", tref
-    print "New method: ", new, " time: ", tnew
+    print "New_method: ", new, " time: ", tnew
     
