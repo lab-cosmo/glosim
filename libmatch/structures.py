@@ -166,7 +166,9 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
    kk = np.zeros((nenvA,nenvB),float)
    ika = 0
    ikb = 0   
+   zalist=[]
    for za, nza in nspeciesA:
+      zblist=[]
       for ia in xrange(nza):
          envA = strucA.getenv(za, ia)         
          ikb = 0
@@ -179,8 +181,10 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
                    kk[ika,ikb] = acab - alchem.mu/2                  
                else:
                   kk[ika,ikb] = envk(envA, envB, alchem) * acab
+               if zb==za : zblist.append([ika,ikb])
                ikb+=1
          ika+=1
+      zalist.append(zblist)
 
    if fout != None:
       # prints out similarity information for the environment pairs
@@ -222,9 +226,33 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
             from permanent import permanent
         except:
             print >> sys.stderr, "Cannot compute permanent kernel without a permanent module installed in pythonpath"
+            print >> sys.stderr, "Get it from https://github.com/peteshadbolt/permanent "
             exit()
+#        print kk
         perm=permanent(np.array(kk,dtype=complex))       
-        cost = perm.real/np.math.factorial(nenv)/nenv
+        cost = perm.real /np.math.factorial(nenv)/nenv
+        print "old cost= ",cost
+        cost=1.0
+        nat=[]
+        for za, nza in nspecies:
+           nat.append(nza) 
+        for i in range(len(zalist)):
+#            print zalist[i]
+            rowlist=[]
+            collist=[]
+            for index in zalist[i]:
+               if index[0]  not in rowlist:rowlist.append(index[0])
+               if index[1]  not in collist:collist.append(index[1])
+#            print rowlist
+#            print collist
+            block=kk[np.ix_(rowlist,collist)]
+            perm=permanent(np.array(block,dtype=complex))
+            cost=cost*perm.real #/np.math.factorial(nat[i])/nat[i]
+            
+#        exit()
+        cost = cost/np.math.factorial(nenv)/nenv
+        print "new cost= ",cost
+
    else: raise ValueError("Unknown global fingerprint mode ", mode)
    
    if fout != None:
