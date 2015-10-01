@@ -16,32 +16,110 @@ from libmatch.environments import alchemy, environ
 from libmatch.structures import structk, structure
 import numpy as np
 
-def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nocenter, noatom, nprocs, verbose=False, envij=None, usekit=False, kit="auto", prefix="",nlandmark=0, printsim=False,ref_xyz=""):
+def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nocenter, noatom, nprocs, verbose=False, envij=None, usekit=False, kit="auto", prefix="",nlandmark=0, printsim=False,ref_xyz="",nsafe=0,rmfrom='ref'):
     print >>sys.stderr, "    ___  __    _____  ___  ____  __  __ ";
     print >>sys.stderr, "   / __)(  )  (  _  )/ __)(_  _)(  \/  )";
     print >>sys.stderr, "  ( (_-. )(__  )(_)( \__ \ _)(_  )    ( ";
     print >>sys.stderr, "   \___/(____)(_____)(___/(____)(_/\/\_)";
     print >>sys.stderr, "                                        ";
     print >>sys.stderr, "                                         ";
-#    print >>sys.stderr, "             (         )      (      (        *     ";
-#    print >>sys.stderr, "    (        )\ )   ( /(      )\ )   )\ )   (  \`    ";
-#    print >>sys.stderr, "    )\ )    (()/(   )\())    (()/(  (()/(   )\))(   ";
-#    print >>sys.stderr, "   (()/(     /(_)) ((_)\      /(_))  /(_)) ((_)()\  ";
-#    print >>sys.stderr, "    /(_))_  (_))     ((_)    (_))   (_))   (_()((_) ";
-#    print >>sys.stderr, "   (_)) __| | |     / _ \    / __|  |_ _|  |  \/  | ";
-#    print >>sys.stderr, "     | (_ | | |__  | (_) |   \__ \   | |   | |\/| | ";
-#    print >>sys.stderr, "      \___| |____|  \___/    |___/  |___|  |_|  |_| ";
-#    print >>sys.stderr, "                                                    ";
     filename = filename[0]
     # sets a few defaults 
     if prefix=="": prefix=filename
+    if prefix.endswith('.xyz'): prefix=prefix[:-4]
 
     # reads input file using quippy
     print >> sys.stderr, "Reading input file", filename
     al = quippy.AtomsList(filename);
     print >> sys.stderr, len(al.n) , " Configurations Read"
-    print >> sys.stderr, "Computing SOAPs"
+    if (ref_xyz !=""):
+        print >> sys.stderr, "================================REFERENCE XYZ FILE GIVEN=====================================\n",
+        print >> sys.stderr, "Only Rectangular Matrix Containing Distances Between Two Sets of Input Files Will be Computed.\n",
+        print >> sys.stderr, "Reading Referance xyz file: ", ref_xyz
+        alref = quippy.AtomsList(ref_xyz);
+        print >> sys.stderr, len(alref.n) , " Configurations Read"
 
+
+   # Checking which frames needs to be removed.
+    if periodic and nsafe>0  and kmode!="average":
+      print >> sys.stderr, len(al.n) , "nsafe= ",nsafe, " given: Checking for frames to remove."
+      if ref_xyz=="":
+         rmlist=[]
+         for  iframe in range (len(al.n)):
+           na=al[iframe].n
+           for jframe in range(len(al.n)):
+            if jframe not in rmlist:
+             nb=al[jframe].n
+             ncom=lcm(na,nb)
+             if ncom >nsafe and na>nb and iframe not in rmlist:rmlist.append(iframe)
+         if len(rmlist)>0:
+           print >> sys.stderr,"frames to remove", rmlist
+           qrm=quippy.AtomsWriter(prefix+"_removed.xyz")
+           for iframe in rmlist:
+             qrm.write(al[iframe])
+
+           rmlist=sorted(rmlist,reverse=True)
+           for iframe in rmlist:
+       #     print >>sys.stderr, "Deleting",iframe
+              del al[iframe]
+           qsafe=quippy.AtomsWriter(prefix+"_safe.xyz")
+           for at in al:
+             qsafe.write(at)
+           print >>sys.stderr, "New Number of Frames",len(al.n)
+      else:  
+         rmlist=[]
+         rmlist_ref=[]
+         if rmfrom=="ref" : 
+           for  iframe in range (len(al.n)):
+             na=al[iframe].n
+             if iframe not in rmlist:
+              for jframe in range(len(alref.n)):
+               if jframe not in rmlist_ref:
+                 nb=alref[jframe].n
+                 ncom=lcm(na,nb)
+                 if ncom >nsafe  and  jframe not in rmlist_ref: rmlist_ref.append(jframe)
+           if len(rmlist_ref)>0:
+             print >> sys.stderr,"frames to remove from ref", rmlist_ref
+             if ref_xyz.endswith('.xyz'): ref_xyz=ref_xyz[:-4]
+             qrm=quippy.AtomsWriter(ref_xyz+"_removed.xyz")
+             for iframe in rmlist_ref:
+                qrm.write(alref[iframe])
+             rmlist_ref=sorted(rmlist_ref,reverse=True)
+             for iframe in rmlist_ref:
+        #        print >>sys.stderr, "Deleting",iframe
+                del alref[iframe]
+             qsafe=quippy.AtomsWriter(ref_xyz+"_safe.xyz")
+             for at in alref:
+                qsafe.write(at)
+ 
+             print >>sys.stderr, "New Number of Frames",len(alref.n)
+           
+  
+         else: 
+           for  iframe in range (len(alref.n)):
+             na=alref[iframe].n
+             if iframe not in rmlist_ref:
+              for jframe in range(len(al.n)):
+               if jframe not in rmlist:
+                 nb=al[jframe].n
+                 ncom=lcm(na,nb)
+                 if ncom >nsafe  and  jframe not in rmlist: rmlist.append(jframe)
+           if len(rmlist)>0:
+             print >> sys.stderr,"frames to remove from src", rmlist
+             qrm=quippy.AtomsWriter(prefix+"_removed.xyz")
+             for iframe in rmlist:
+                qrm.write(al[iframe])
+             rmlist=sorted(rmlist,reverse=True)
+             for iframe in rmlist:
+         #       print >>sys.stderr, "Deleting",iframe
+                del al[iframe]
+             qsafe=quippy.AtomsWriter(prefix+"_safe.xyz")
+             for at in al:
+               qsafe.write(at)
+             print >>sys.stderr, "New Number of Frames",len(al.n)
+
+#    return
+    print >> sys.stderr, "Computing SOAPs"
     # sets alchemical matrix
     alchem = alchemy(mu=mu)
     sl = []
@@ -108,11 +186,11 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nocenter
 
     # If ref landmarks are given and rectangular matrix is the only desired output             
     if (ref_xyz !=""):
-        print >> sys.stderr, "================================REFERENCE XYZ FILE GIVEN=====================================\n",
-        print >> sys.stderr, "Only Rectangular Matrix Containing Distances Between Two Sets of Input Files Will be Computed.\n",
-        print >> sys.stderr, "Reading Referance xyz file: ", ref_xyz
-        alref = quippy.AtomsList(ref_xyz);
-        print >> sys.stderr, len(alref.n) , " Configurations Read"
+#        print >> sys.stderr, "================================REFERENCE XYZ FILE GIVEN=====================================\n",
+#        print >> sys.stderr, "Only Rectangular Matrix Containing Distances Between Two Sets of Input Files Will be Computed.\n",
+#        print >> sys.stderr, "Reading Referance xyz file: ", ref_xyz
+#        alref = quippy.AtomsList(ref_xyz);
+#        print >> sys.stderr, len(alref.n) , " Configurations Read"
         print >> sys.stderr, "Computing SOAPs"
         # sets alchemical matrix
         alchem = alchemy(mu=mu)
@@ -178,7 +256,9 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nocenter
             nrm_ref[iframe]=sii        
 
         sim = np.zeros((nf,nf_ref))
+        sys.stderr.write("Computing Similarity Matrix           \n")
         for iframe in range(nf):
+          sys.stderr.write("Matrix row %d                           \r" % (iframe))
           for jframe in range(nf_ref):
             sij = structk(sl[iframe], sl_ref[jframe], alchem, periodic, mode=kmode, fout=None)
             sim[iframe][jframe]=sij/np.sqrt(nrm[iframe]*nrm_ref[jframe])
@@ -300,7 +380,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nocenter
                     if verbose:
                         fij = open(prefix+".environ-"+str(iframe)+"-"+str(jframe)+".dat", "w")
                     else: fij = None
-               
+                    if periodic: sys.stderr.write("comparing %3d, atoms cell with  %3d atoms cell: lcm: %3d \r" % (iframe,jframe, lcm(sl[iframe].nenv,sl[jframe].nenv))) 
                     sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=kmode, fout=fij)          
                     sim[iframe][jframe]=sim[jframe][iframe]=sij/np.sqrt(nrm[iframe]*nrm[jframe])
                 sys.stderr.write("Matrix row %d                           \r" % (iframe))
@@ -351,6 +431,15 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nocenter
                 for x in sim[iframe][0:nf]:
                     fsim.write("%16.8e " % (np.sqrt(max(2-2*x,0))))
                 fsim.write("\n")   
+def gcd(a,b):
+   if (b>a): a,b = b, a
+
+   while (b):  a, b = b, a%b
+
+   return a
+
+def lcm(a,b):
+   return a*b/gcd(b,a)
 
 if __name__ == '__main__':
       parser = argparse.ArgumentParser(description="""Computes the similarity matrix between a set of atomic structures 
@@ -376,6 +465,8 @@ if __name__ == '__main__':
       parser.add_argument("--nlandmarks", type=int,default='0',help="Use farthest point sampling method to select n landmarks. std output is n x n matrix. The n x N rectangular matrix is stored in file sim-rect.dat and the selected landmark frames are stored in landmarks.xyz file")     
       parser.add_argument("--prefix", type=str, default='', help="Prefix for output files (defaults to input file name)")
       parser.add_argument("--refxyz", type=str, default='', help="ref xyz file if you want to compute the rectangular matrix contaning distances from ref configurations")
+      parser.add_argument("--nsafe", type=int, default=0, help="Max allowed number of atoms for replication. for Only for Peridoc system with match kernel. Remove a frame if it is causing lcm to grow higher than nsafe ")
+      parser.add_argument("--delfrom", type=str, default='ref', help="(ref/src) Delete frames from ref or src considering nsafe value. Only for Peridoc system with match kernel. Remove a frame deom src/ref if it is causing lcm to grow higher than nsafe ")
       
            
       args = parser.parse_args()
@@ -398,5 +489,6 @@ if __name__ == '__main__':
          envij=None
       else:
          envij=tuple(map(int,args.ij.split(",")))
+   
                
-      main(args.filename, nd=args.n, ld=args.l, coff=args.c, gs=args.g, mu=args.mu, centerweight=args.cw, periodic=args.periodic, usekit=args.usekit, kit=args.kit, kmode=args.kernel, noatom=noatom, nocenter=nocenter, nprocs=args.np, verbose=args.verbose, envij=envij, prefix=args.prefix, nlandmark=args.nlandmarks, printsim=args.distance,ref_xyz=args.refxyz)
+      main(args.filename, nd=args.n, ld=args.l, coff=args.c, gs=args.g, mu=args.mu, centerweight=args.cw, periodic=args.periodic, usekit=args.usekit, kit=args.kit, kmode=args.kernel, noatom=noatom, nocenter=nocenter, nprocs=args.np, verbose=args.verbose, envij=envij, prefix=args.prefix, nlandmark=args.nlandmarks, printsim=args.distance,ref_xyz=args.refxyz,nsafe=args.nsafe,rmfrom=args.delfrom)
