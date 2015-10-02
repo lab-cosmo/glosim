@@ -147,8 +147,8 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
          nspeciesA.append( (z, strucA.getnz(z)) )
       for z in strucB.zspecies:
          nspeciesB.append( (z, strucB.getnz(z)) )
-      nenvA = strucA.nenv
-      nenvB = strucB.nenv      
+      nenv=nenvA = strucA.nenv
+      nenvB = strucB.nenv            
    else:   
       # top up missing atoms with isolated environments
       # first checks whic atoms are present
@@ -208,7 +208,7 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
    # We can first find the optimal scalar product kernel
    # we must find the maximum "cost"
    if mode == "match":
-        if periodic:
+        if periodic and nenvA != nenvB:
             nenv = lcm(nenvA, nenvB)
             hun = lcm_best_cost2(1-kk)
         else:

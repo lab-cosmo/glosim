@@ -21,7 +21,7 @@ def best_pairs(matrix):
     return linear_assignment(matrix)
 
 def best_cost(matrix):
-  hun=lap(matrix)
+  hun=linear_assignment(matrix)
   cost=0.0
   for pair in hun:
      cost+=matrix[pair[0],pair[1]]
@@ -70,23 +70,21 @@ def lcm_best_cost1(mtx):
         if pc<myinf: tc += nmtx[p[0],p[1]]    
     return tc
 
-def lcm_best_cost2(mtx):
+def lcm_best_cost2(gmtx):
         
-    if mtx.shape[0] != mtx.shape[1]:
-        mm = lcm(mtx.shape[0], mtx.shape[1])
-        nmtx = np.zeros((mm,mm), float)        
-        for i in range(mm/mtx.shape[0]):
-            for j in range(mm/mtx.shape[1]):
-                nmtx[i*mtx.shape[0]:(i+1)*mtx.shape[0],j*mtx.shape[1]:(j+1)*mtx.shape[1]] = mtx
-    else: 
-        nmtx = mtx
-        mm = mtx.shape[0]
+    mtx = gmtx
     xm, ym = mtx.shape 
+    if xm==ym:
+        return best_cost(mtx)
+    if xm > ym:
+        mtx = gmtx.T
+        xm, ym = mtx.shape 
     mm = lcm(xm, ym)
-    lx, ly = lcm_index(xm,ym)
+    lx, ly = lcm_index(xm,ym)    
     
-    sm = max(xm, ym)
-        
+    # print xm, ym
+    sm = min(xm, ym)
+    np.set_printoptions(linewidth=1000,threshold=10000)
     tc = 0    
     bcl = []
     blocks = []    
@@ -105,26 +103,35 @@ def lcm_best_cost2(mtx):
             bc += pc  
         bcl.append(bc)
     
+    nxc = 0 
+    ntry = 0
+        
     merged = True
-    while merged:
-        # sort blocks according to size (so we always try to merge first small blocks)
-        skey = [ len(blocks[i][0]) for i in range(len(bcl)) ]
-        print skey
-        sind = np.argsort(np.asarray(skey))    
-        bcl = [ bcl[i] for i in sind]
-        blocks = [ blocks[i] for i in sind]
-        print "sorted costs", bcl
-        print "average costs", np.asarray(bcl)/np.asarray(skey)[sind]
-        print "estimate cost ", sum(bcl), len(blocks)
-        for i in xrange(len(blocks)):
-            merged = False
-            for j in range(i):
-                blxi = blocks[i][0]            
+    nb = len(blocks)
+    tainted = np.ones((nb,nb), int)
+    tainted[1,0]=1 # make sure we get in once!
+    
+    while merged and np.triu(tainted,1).sum()>0:
+        # sort blocks according to cost (so we always try to merge blocks with high cost)
+        #~ skey = [ bcl[i]/len(blocks[i][0]) for i in range(len(bcl)) ]
+        #~ print skey
+        #~ sind = np.argsort(np.asarray(skey))[::-1] 
+        #~ bcl = [ bcl[i] for i in sind]
+        #~ blocks = [ blocks[i] for i in sind]        
+        print "estimate cost ", sum(bcl), "n. exchanges", nxc, "/", ntry     
+        merged = False
+        
+        for i in xrange(nb):                  
+            blxi = blocks[i][0]
+            blyi = blocks[i][1]
+            ni = len(blxi)                
+            for j in range(i+1,nb):
+                if tainted[i,j]==0: continue  
+                # print np.tril(tainted,-1)              
+                ntry += 1                        
                 blxj = blocks[j][0]
-                ni = len(blxi)
-                nj = len(blxj)                
-                blyi = blocks[i][1]
                 blyj = blocks[j][1]
+                nj = len(blxj)                
                 blx = blxi+blxj
                 bly = blyi+blyj
                 subm = mtx[np.ix_(blx,bly)]
@@ -134,21 +141,42 @@ def lcm_best_cost2(mtx):
                 for p in bp:
                     pc = subm[p[0],p[1]]
                     bc += pc  
-                if bc*(1+1e-5)< (bcl[i]+bcl[j]):
-                    print "MERGING %d,%d: %f+%f=%f >%f\n" %(i,j,bcl[i],bcl[j],bcl[i]+bcl[j],bc)                    
-                    #for i in xrange(ni):
-                    #    bpi = 
-                    blocks.pop(i)
-                    blocks.pop(j)
-                    blocks.append((blx, bly))
-                    bcl.pop(i)
-                    bcl.pop(j)
-                    bcl.append(bc)                    
+                    
+                if bc*(1+1e-8)< (bcl[i]+bcl[j]):
+                    # print "MERGING %d,%d: %f+%f=%f >%f\n" %(i,j,bcl[i],bcl[j],bcl[i]+bcl[j],bc)
+                    #print "before", blyi, blyj
+                    blyi = []
+                    blyj = []                    
+                    ci = 0
+                    for ti in xrange(ni):
+                        blyi.append(bly[bp[ti][1]])
+                        ci += subm[bp[ti][0],bp[ti][1]]                        
+                    cj = 0
+                    for tj in xrange(nj):
+                        blyj.append(bly[bp[ni+tj][1]])
+                        cj += subm[bp[ni+tj][0],bp[ni+tj][1]]                        
+                    #print "after", nblyi, nblyj
+                    #~ subm = mtx[np.ix_(blxi,nblyi)]
+                    #~ ci = best_cost(subm)
+                    #~ subm = mtx[np.ix_(blxj,nblyj)]
+                    #~ cj = best_cost(subm)
+                    #~ subm = mtx[np.ix_(blxi+blxj,nblyi+nblyj)]
+                    #~ ncc = best_cost(subm)
+                    # print "new cost", ci+cj, bcl[i]+bcl[j], bc, "n. exchanges", nxc, "/", ntry
+                    nxc+=1
+                    blocks[i] = (blxi,blyi)
+                    blocks[j] = (blxj,blyj)
+                    bcl[i] = ci
+                    bcl[j] = cj     
+                    tainted[i,:] = 1
+                    tainted[:,j] = 1
+                    tainted[i,j] = 0
                     merged = True
-                    break
-            if merged: break  
+                    break # it is more efficient to restart since this i has been tainted anyway
+                tainted[i,j] = 0
+            #if merged: break  
     
-    print "final cost", sum(bcl), len(bcl)
+    print "final cost", sum(bcl), len(bcl), "total exchanges: ", nxc, "/", ntry
     return sum(bcl)
 
 
@@ -172,10 +200,11 @@ def main(filename):
     cA = np.ones(nA) * (nAB/nA-1)
     cB = np.ones(nB) * (nAB/nB-1)
 
+    np.set_printoptions(linewidth=1000)
     tcost = 0
     while cA.sum()>0 or cB.sum()>0:      
         print "outer loop"
-        prevbp = []
+        prevbp = []        
         while True:
             addA = []
             addB = []
