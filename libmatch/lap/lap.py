@@ -59,32 +59,18 @@ def lcm_matrix(m):
     return m[np.ix_(lx, ly)]
 
 myinf = 1e2
-def main1(filename):
-    mtx=np.loadtxt(filename)
-    
-    
-    #~ if mtx.shape[0] != mtx.shape[1]:
-        #~ mm = lcm(mtx.shape[0], mtx.shape[1])
-        #~ nmtx = np.zeros((mm,mm), float)        
-        #~ for i in range(mm/mtx.shape[0]):
-            #~ for j in range(mm/mtx.shape[1]):
-                #~ nmtx[i*mtx.shape[0]:(i+1)*mtx.shape[0],j*mtx.shape[1]:(j+1)*mtx.shape[1]] = mtx
-    #~ else: nmtx = mtx
- #~ 
+def lcm_best_cost1(mtx):    
     nmtx = lcm_matrix(mtx)
           
     bp = best_pairs(nmtx)
     tc = 0
     
     for p in bp:
-        pc = nmtx[p[0],p[1]]
-        #print "MATCH1: ", p, p[0]%mtx.shape[0], p[1]%mtx.shape[1], pc
-        if pc<myinf: tc += nmtx[p[0],p[1]]
-    print "***** reference cost: ", tc
+        pc = nmtx[p[0],p[1]]        
+        if pc<myinf: tc += nmtx[p[0],p[1]]    
     return tc
 
-def main2(filename):
-    mtx=np.loadtxt(filename)
+def lcm_best_cost2(mtx):
         
     if mtx.shape[0] != mtx.shape[1]:
         mm = lcm(mtx.shape[0], mtx.shape[1])
@@ -133,8 +119,14 @@ def main2(filename):
         for i in xrange(len(blocks)):
             merged = False
             for j in range(i):
-                blx = blocks[i][0]+blocks[j][0]
-                bly = blocks[i][1]+blocks[j][1]
+                blxi = blocks[i][0]            
+                blxj = blocks[j][0]
+                ni = len(blxi)
+                nj = len(blxj)                
+                blyi = blocks[i][1]
+                blyj = blocks[j][1]
+                blx = blxi+blxj
+                bly = blyi+blyj
                 subm = mtx[np.ix_(blx,bly)]
                 bp = best_pairs(subm)
           
@@ -142,8 +134,10 @@ def main2(filename):
                 for p in bp:
                     pc = subm[p[0],p[1]]
                     bc += pc  
-                if bc *(1+1e-5)< (bcl[i]+bcl[j]):
-                    print "MERGING %d,%d: %f+%f=%f >%f\n" %(i,j,bcl[i],bcl[j],bcl[i]+bcl[j],bc)
+                if bc*(1+1e-5)< (bcl[i]+bcl[j]):
+                    print "MERGING %d,%d: %f+%f=%f >%f\n" %(i,j,bcl[i],bcl[j],bcl[i]+bcl[j],bc)                    
+                    #for i in xrange(ni):
+                    #    bpi = 
                     blocks.pop(i)
                     blocks.pop(j)
                     blocks.append((blx, bly))
@@ -273,13 +267,16 @@ def main(filename):
        
     
 if __name__ == "__main__":
+    
+    filename = sys.argv[1]
+    mtx=1-np.loadtxt(filename)
     np.set_printoptions(linewidth=1000)
     st=time.time()
-    ref=main1(*sys.argv[1:])
-    tref = time.time()-st
+    new=lcm_best_cost2(mtx)
+    tnew = time.time()-st    
     st=time.time()
-    new=main2(*sys.argv[1:])
-    tnew = time.time()-st
+    ref=lcm_best_cost1(mtx)
+    tref = time.time()-st
     
     print "Reference:  ", ref, " time: ", tref
     print "New_method: ", new, " time: ", tnew

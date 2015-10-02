@@ -9,7 +9,7 @@
 
 import sys
 import quippy
-from lap.lap import best_pairs
+from lap.lap import best_pairs, best_cost, lcm_best_cost1, lcm_best_cost2
 import numpy as np
 from environments import environ, alchemy, envk
 __all__ = [ "structk", "structure" ]
@@ -202,25 +202,19 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
             fout.write("%8.4e " % (e) )
          fout.write("\n")
        
-   if periodic: 
-      # now we replicate the (possibly rectangular) matrix to make
-      # a square matrix for matching
-      nenv = lcm(nenvA, nenvB)
-      skk = np.zeros((nenv, nenv), float)
-      for i in range(nenv/nenvA):
-         for j in range(nenv/nenvB):
-            skk[i*nenvA:(i+1)*nenvA,j*nenvB:(j+1)*nenvB] = kk
-      kk = skk
+
       
    # Now we have the matrix of scalar products. 
    # We can first find the optimal scalar product kernel
    # we must find the maximum "cost"
    if mode == "match":
-      hun=best_pairs(1.0-kk)
-      cost = 0.0
-      for pair in hun:
-         cost+=kk[pair[0],pair[1]]
-      cost = cost/nenv
+        if periodic:
+            nenv = lcm(nenvA, nenvB)
+            hun = lcm_best_cost2(1-kk)
+        else:
+            hun=best_cost(1.0-kk)
+        
+        cost = 1-hun/nenv
    elif mode == "permanent":
         try:
             from permanent import permanent
@@ -248,10 +242,5 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
 
    else: raise ValueError("Unknown global fingerprint mode ", mode)
    
-   if fout != None:
-      fout.write("# optimal environment list: \n")      
-      for pair in hun:
-         fout.write("%d  %d  \n" % (pair[0],pair[1]) )
-      fout.close()
          
    return cost
