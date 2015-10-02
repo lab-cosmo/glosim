@@ -9,7 +9,7 @@
 
 import sys
 import quippy
-from lap.lap import best_pairs, best_cost, lcm_best_cost1, lcm_best_cost2
+from lap.lap import best_pairs, best_cost, lcm_best_cost
 import numpy as np
 from environments import environ, alchemy, envk
 __all__ = [ "structk", "structure" ]
@@ -210,7 +210,7 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
    if mode == "match":
         if periodic and nenvA != nenvB:
             nenv = lcm(nenvA, nenvB)
-            hun = lcm_best_cost2(1-kk)
+            hun = lcm_best_cost(1-kk)
         else:
             hun=best_cost(1.0-kk)
         

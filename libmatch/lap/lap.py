@@ -3,7 +3,7 @@ import numpy as np
 import sys, time
 from copy import copy
 
-__all__ = [ "best_cost", "best_pairs" ]
+__all__ = [ "best_cost", "lcm_best_cost", "lcm_best_cost1", "lcm_best_cost2", "best_pairs" ]
 
 try: 
     import hungarian
@@ -59,6 +59,15 @@ def lcm_matrix(m):
     return m[np.ix_(lx, ly)]
 
 myinf = 1e2
+
+def lcm_best_cost(mtx):
+    
+    # heuristics
+    if (lcm(mtx.shape[0],mtx.shape[1]) < 1000):
+        return lcm_best_cost1(mtx)
+    else:
+        return lcm_best_cost2(mtx, 1e-5)
+
 def lcm_best_cost1(mtx):    
     nmtx = lcm_matrix(mtx)
           
@@ -70,8 +79,8 @@ def lcm_best_cost1(mtx):
         if pc<myinf: tc += nmtx[p[0],p[1]]    
     return tc
 
-def lcm_best_cost2(gmtx):
-        
+def lcm_best_cost2(gmtx, thresh = 1e-10):
+    # tresh: threshold for getting into the merging of two blocks
     mtx = gmtx
     xm, ym = mtx.shape 
     if xm==ym:
@@ -111,13 +120,7 @@ def lcm_best_cost2(gmtx):
     tainted = np.ones((nb,nb), int)
     tainted[1,0]=1 # make sure we get in once!
     
-    while merged and np.triu(tainted,1).sum()>0:
-        # sort blocks according to cost (so we always try to merge blocks with high cost)
-        #~ skey = [ bcl[i]/len(blocks[i][0]) for i in range(len(bcl)) ]
-        #~ print skey
-        #~ sind = np.argsort(np.asarray(skey))[::-1] 
-        #~ bcl = [ bcl[i] for i in sind]
-        #~ blocks = [ blocks[i] for i in sind]        
+    while merged and np.triu(tainted,1).sum()>0:     
         print "estimate cost ", sum(bcl), "n. exchanges", nxc, "/", ntry     
         merged = False
         
@@ -142,9 +145,8 @@ def lcm_best_cost2(gmtx):
                     pc = subm[p[0],p[1]]
                     bc += pc  
                     
-                if bc*(1+1e-8)< (bcl[i]+bcl[j]):
+                if (bcl[i]+bcl[j])/bc -1  > thresh:
                     # print "MERGING %d,%d: %f+%f=%f >%f\n" %(i,j,bcl[i],bcl[j],bcl[i]+bcl[j],bc)
-                    #print "before", blyi, blyj
                     blyi = []
                     blyj = []                    
                     ci = 0
@@ -167,7 +169,7 @@ def lcm_best_cost2(gmtx):
                     blocks[i] = (blxi,blyi)
                     blocks[j] = (blxj,blyj)
                     bcl[i] = ci
-                    bcl[j] = cj     
+                    bcl[j] = cj  
                     tainted[i,:] = 1
                     tainted[:,j] = 1
                     tainted[i,j] = 0
@@ -178,122 +180,6 @@ def lcm_best_cost2(gmtx):
     
     print "final cost", sum(bcl), len(bcl), "total exchanges: ", nxc, "/", ntry
     return sum(bcl)
-
-
-
-def pad(mtx, inf):
-    nAB = max(mtx.shape)
-    nmtx = np.ones((nAB, nAB)) * inf
-    nmtx[0:mtx.shape[0],0:mtx.shape[1]] = mtx
-    return nmtx
-    
-def main(filename):
-    mbase=np.loadtxt(filename)
-    notlast=True
-    final_cost=0.0
-    nA, nB = mbase.shape
-    nAB = lcm(nA, nB)
-    
-    # how many times each element will be repeated
-    elA = np.asarray(range(nA))
-    elB = np.asarray(range(nB))
-    cA = np.ones(nA) * (nAB/nA-1)
-    cB = np.ones(nB) * (nAB/nB-1)
-
-    np.set_printoptions(linewidth=1000)
-    tcost = 0
-    while cA.sum()>0 or cB.sum()>0:      
-        print "outer loop"
-        prevbp = []        
-        while True:
-            addA = []
-            addB = []
-            while len(elA)+len(addA)<len(elB) and cA.sum()>0:
-                for i in xrange(nA):
-                    # print len(elA)+len(addA), len(elB), cA.min()
-                    if cA[i]==cA[cA.nonzero()].min():
-                        addA.append(i)                        
-                        cA[i]-=1
-                        if len(elA)+len(addA)==len(elB): 
-                            break
-            while len(elB)+len(addB)<len(elA) and cB.sum()>0:
-                for i in xrange(nB):
-                    if cB[i]==cB[cB.nonzero()].min():
-                        addB.append(i)                        
-                        cB[i]-=1
-                        if len(elB)+len(addB)==len(elA): 
-                            break
-            elA = np.asarray(list(elA)+addA)
-            elB = np.asarray(list(elB)+addB)        
-            mtx = mbase[np.ix_(elA, elB)]
-            nmtx = pad(mtx, myinf)
-            print nmtx
-            print " Running an iteration ", len(elA)
-            print elA
-            print elB
-          
-            bp = best_pairs(nmtx)
-            rmA = []
-            rmB = [] 
-            pcost = 0
-            rbp = []
-            for p in bp:
-              pc = nmtx[p[0],p[1]]
-              if pc<myinf: 
-                 rbp.append((elA[p[0]], elB[p[1]]))
-                 # print "MATCH2", p,rbp[-1], pc
-                 pcost += nmtx[p[0],p[1]]
-                 rmA.append(p[0])
-                 rmB.append(p[1])
-            
-            #~ fsame = True
-            #~ nsame = 0
-            #~ for p in prevbp:
-                #~ if not p in rbp:
-                    #~ fsame = False
-                    #~ break
-                #~ nsame+=1
-            #~ print rbp
-            #~ print "matching assignments", nsame, " out of ", len(prevbp)
-            #~ if fsame and prevbp!=[]: 
-                #~ print "*** ASSIGNMENTS DID NOT CHANGE!"
-                #~ # roll back and update stuff
-                
-            prevbp = rbp 
-             
-            nelA = np.delete(elA, rmA)
-            nelB = np.delete(elB, rmB)
-            addA = []
-            addB = []
-            for i in xrange(nA):
-                if not i in nelA and cA[i]>0:
-                    addA.append(i)
-                    cA[i]-=1
-            for i in xrange(nB):
-                if not i in nelB and cB[i]>0:
-                    addB.append(i)
-                    cB[i]-=1
-            #~ tcost+=pcost
-            #~ if addA == [] and addB == []:
-                #~ break
-            #~ else:
-                #~ elA = np.asarray(list(nelA)+addA)
-                #~ elB = np.asarray(list(nelB)+addB)
-            if addA == [] and addB == []:
-                elA = nelA
-                elB = nelB
-                tcost += pcost
-                break
-            else:
-                elA = np.asarray(list(elA)+addA)
-                elB = np.asarray(list(elB)+addB)
-            print "new selections: ", len(elA), len(elB), elA, elB
-            
-        print "total cost: ", pcost
-      
-    print "***** Final Cost= ", tcost
-    return tcost
-       
     
 if __name__ == "__main__":
     
@@ -303,10 +189,17 @@ if __name__ == "__main__":
     st=time.time()
     new=lcm_best_cost2(mtx)
     tnew = time.time()-st    
+    
     st=time.time()
-    ref=lcm_best_cost1(mtx)
+    apx=lcm_best_cost2(mtx,1e-5)
+    tapx = time.time()-st    
+    
+    st=time.time()
+    ref=0
+    #ref=lcm_best_cost1(mtx)
     tref = time.time()-st
     
-    print "Reference:  ", ref, " time: ", tref
-    print "New_method: ", new, " time: ", tnew
+    print "Reference:          ", ref, " time: ", tref
+    print "New_method:         ", new, " time: ", tnew
+    print "New_method(approx): ", apx, " time: ", tapx
     
