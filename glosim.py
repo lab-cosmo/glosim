@@ -265,7 +265,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nocenter
            
         fkernel = open(prefix+"_rect.k", "w")  
         fkernel.write("# Rectangular Kernel matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s" % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)) )
-        if (usekit): fkernel.write( " [ Using reference kit: %s\n" % (str(kit)) )
+        if (usekit): fkernel.write( " Using reference kit: %s\n" % (str(kit)) )
         else: fkernel.write("\n")
         for iframe in range(0,nf):
             for x in sim[iframe][0:nf_ref]:
@@ -275,7 +275,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nocenter
         if printsim:
             fsim = open(prefix+"_rect.sim", "w")  
             fsim.write("# Rectangular distance matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s" % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)) )
-            if (usekit): fsim.write( " [ Using reference kit: %s\n" % (str(kit)) )
+            if (usekit): fsim.write( " Using reference kit: %s\n" % (str(kit)) )
             else: fsim.write("\n")
             for iframe in range(0,nf):
                 for x in sim[iframe][0:nf_ref]:
