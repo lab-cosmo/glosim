@@ -3,9 +3,11 @@
 import numpy as np
 import sys
 
-def main(kernel, prop,  testfrac="0.25"):
-    testfrac=float(0.25) 
-   
+def main(kernel, prop,  testfrac="0.25", csi="2", sigma="1e-3"):
+    testfrac=float(testfrac) 
+    csi = float(csi)
+    sigma = float(sigma)
+     
     # reads kernel
     fkernel=open(kernel, "r")
     fline = fkernel.readline()
@@ -23,7 +25,7 @@ def main(kernel, prop,  testfrac="0.25"):
     if kij[0,0]<1e-5:
         kij = (1-0.5*kij*kij)
     
-    kij = kij**4
+    kij = kij**csi
     print >> sys.stderr, kij[0]
     
     # reads properties
@@ -56,7 +58,7 @@ def main(kernel, prop,  testfrac="0.25"):
     tk = kij[ltrain][:,ltrain].copy()
     print "SHAPES", kij.shape,  tk.shape
     for i in xrange(len(ltrain)):
-        tk[i,i]+=vp*1e-2  # regularization
+        tk[i,i]+=vp*sigma  # regularization
     tc = np.linalg.solve(tk, tp)
     
     krp = np.dot(kij[:,ltrain],tc)

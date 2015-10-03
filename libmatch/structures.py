@@ -165,10 +165,8 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
 
    kk = np.zeros((nenvA,nenvB),float)
    ika = 0
-   ikb = 0   
-   zalist=[]
-   for za, nza in nspeciesA:
-      zblist=[]
+   ikb = 0  
+   for za, nza in nspeciesA:      
       for ia in xrange(nza):
          envA = strucA.getenv(za, ia)         
          ikb = 0
@@ -180,11 +178,19 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
                    # includes a penalty dependent on "mu", in a way that is consistent with the definition of kernel distance
                    kk[ika,ikb] = acab - alchem.mu/2                  
                else:
-                  kk[ika,ikb] = envk(envA, envB, alchem) * acab
-               if zb==za : zblist.append([ika,ikb])
+                  kk[ika,ikb] = envk(envA, envB, alchem) * acab               
                ikb+=1
          ika+=1
-      zalist.append(zblist)
+   aidx = {}
+   ika=0
+   for za, nza in nspeciesA: 
+      aidx[za] = range(ika,ika+nza)
+      ika+=nza
+   ikb=0
+   bidx = {}
+   for zb, nzb in nspeciesB: 
+      bidx[zb] = range(ikb,ikb+nzb)
+      ikb+=nzb
 
    if fout != None:
       # prints out similarity information for the environment pairs
@@ -224,16 +230,12 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
             exit()
             
         if not periodic and len(alchem.rules) == 0 : # special case, compute partial permanents over the same-specie blocks
-            cost=1.0        
-            for i in range(len(zalist)):
-                rowlist=[]
-                collist=[]
-                for index in zalist[i]:
-                   if index[0]  not in rowlist:rowlist.append(index[0])
-                   if index[1]  not in collist:collist.append(index[1])
-                block=kk[np.ix_(rowlist,collist)]
-                perm=permanent(np.array(block,dtype=complex))
-                cost=cost*perm.real
+            cost=1.0
+            for a in aidx:
+                if a in bidx and len(aidx[a])>0:
+                    block=kk[np.ix_(aidx[a],bidx[a])]
+                    perm=permanent(np.array(block,dtype=complex))
+                    cost=cost*perm.real
         else: # ouch! we must compute the whole thing, this is gonna cost
             perm=permanent(np.array(kk,dtype=complex))       
             cost = perm.real
