@@ -229,9 +229,9 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
             for a in aidx:
                 if a in bidx and len(aidx[a])>0:
                     block=kk[np.ix_(aidx[a],bidx[a])]
-                    cost=cost*xperm(block)
+                    cost=cost*rndperm(block)
         else: # ouch! we must compute the whole thing, this is gonna cost
-            cost = xperm(kk)
+            cost = rndperm(kk) # xperm(kk)
             
         cost = cost/np.math.factorial(nenv)/nenv        
 
