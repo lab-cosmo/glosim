@@ -10,6 +10,7 @@
 import sys
 import quippy
 from lap.lap import best_pairs, best_cost, lcm_best_cost
+from lap.perm import xperm, rndperm
 import numpy as np
 from environments import environ, alchemy, envk
 __all__ = [ "structk", "structure" ]
@@ -222,23 +223,15 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
         
         cost = 1-hun/nenv
    elif mode == "permanent":
-        try:
-            from permanent import permanent
-        except:
-            print >> sys.stderr, "Cannot compute permanent kernel without a permanent module installed in pythonpath"
-            print >> sys.stderr, "Get it from https://github.com/peteshadbolt/permanent "
-            exit()
             
         if not periodic and len(alchem.rules) == 0 : # special case, compute partial permanents over the same-specie blocks
             cost=1.0
             for a in aidx:
                 if a in bidx and len(aidx[a])>0:
                     block=kk[np.ix_(aidx[a],bidx[a])]
-                    perm=permanent(np.array(block,dtype=complex))
-                    cost=cost*perm.real
+                    cost=cost*xperm(block)
         else: # ouch! we must compute the whole thing, this is gonna cost
-            perm=permanent(np.array(kk,dtype=complex))       
-            cost = perm.real
+            cost = xperm(kk)
             
         cost = cost/np.math.factorial(nenv)/nenv        
 
