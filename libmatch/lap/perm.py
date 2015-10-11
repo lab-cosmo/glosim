@@ -19,8 +19,7 @@ def rndperm(mtx, eps = 1e-3, maxtry=None):
     prm = 0
     prm2 = 0
     pstride=100*sz
-    if maxtry is None: maxtry=10000
-    maxtry *= pstride
+    if not maxtry is None:  maxtry *= pstride
     i=0
     while True:
         np.random.shuffle(idx)
@@ -33,7 +32,7 @@ def rndperm(mtx, eps = 1e-3, maxtry=None):
         if (i)%pstride==0:
             err=np.sqrt( (prm2-prm*prm/i)/i/(i-1) ) / (prm/i)
             print i/pstride, prm/i, err; 
-            if i>maxtry or err<eps: break
+            if ((not maxtry is None) and i>maxtry) or err<eps: break
             
     return prm/i*np.math.factorial(sz)
     return 0
@@ -44,7 +43,7 @@ if __name__ == "__main__":
     filename = sys.argv[1]
     mtx=np.loadtxt(filename)
     st=time.time()
-    new=rndperm(mtx, eps=1e-2)
+    new=rndperm(mtx, eps=1e-3)
     tnew = time.time()-st    
     
     st=time.time()

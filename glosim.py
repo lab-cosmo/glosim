@@ -16,7 +16,7 @@ from libmatch.environments import alchemy, environ
 from libmatch.structures import structk, structure
 import numpy as np
 
-def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nocenter, noatom, nprocs, verbose=False, envij=None, usekit=False, kit="auto", prefix="",nlandmark=0, printsim=False,ref_xyz="",nsafe=0,rmfrom='ref'):
+def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanenteps, nocenter, noatom, nprocs, verbose=False, envij=None, usekit=False, kit="auto", prefix="",nlandmark=0, printsim=False,ref_xyz="",nsafe=0,rmfrom='ref'):
     print >>sys.stderr, "    ___  __    _____  ___  ____  __  __ ";
     print >>sys.stderr, "   / __)(  )  (  _  )/ __)(_  _)(  \/  )";
     print >>sys.stderr, "  ( (_-. )(__  )(_)( \__ \ _)(_  )    ( ";
@@ -181,7 +181,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nocenter
     sys.stderr.write("Computing kernel normalization           \n")
     nrm = np.zeros(nf,float)
     for iframe in range (0, nf):           
-        sii = structk(sl[iframe], sl[iframe], alchem, periodic, mode=kmode, fout=None)        
+        sii = structk(sl[iframe], sl[iframe], alchem, periodic, mode=kmode, fout=None, peps=permanenteps)        
         nrm[iframe]=sii        
 
     # If ref landmarks are given and rectangular matrix is the only desired output             
@@ -252,7 +252,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nocenter
         sys.stderr.write("Computing kernel normalization           \n")
         nrm_ref = np.zeros(nf_ref,float)
         for iframe in range (0, nf_ref):           
-            sii = structk(sl_ref[iframe], sl_ref[iframe], alchem, periodic, mode=kmode, fout=None)        
+            sii = structk(sl_ref[iframe], sl_ref[iframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps)        
             nrm_ref[iframe]=sii        
 
         sim = np.zeros((nf,nf_ref))
@@ -260,7 +260,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nocenter
         for iframe in range(nf):
           sys.stderr.write("Matrix row %d                           \r" % (iframe))
           for jframe in range(nf_ref):
-            sij = structk(sl[iframe], sl_ref[jframe], alchem, periodic, mode=kmode, fout=None)
+            sij = structk(sl[iframe], sl_ref[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps)
             sim[iframe][jframe]=sij/np.sqrt(nrm[iframe]*nrm_ref[jframe])
            
         fkernel = open(prefix+"_rect.k", "w")  
@@ -300,7 +300,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nocenter
         iland=0
         landmarks.append(iframe)
         for jframe in range(nf):            
-            sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=kmode, fout=None)
+            sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=kmode, fout=None,peps = permanenteps)
             sim_rect[iland][jframe]=sij/np.sqrt(nrm[iframe]*nrm[jframe])
             dist_list.append(np.sqrt(max(0,2-2*sij))) # use kernel metric
         #for x in sim_rect[iland][:]:
@@ -318,7 +318,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nocenter
             sys.stderr.write("Landmark %5d    maxd %f                          \r" % (iland, maxd))
             iframe=maxj
             for jframe in range(nf):                
-                sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=kmode, fout=None)
+                sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps)
                 sim_rect[iland][jframe]=sij/np.sqrt(nrm[iframe]*nrm[jframe])
                 dij = np.sqrt(max(0,2-2*sij))
                 if(dij<dist_list[jframe]): dist_list[jframe]=dij
@@ -381,14 +381,14 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nocenter
                         fij = open(prefix+".environ-"+str(iframe)+"-"+str(jframe)+".dat", "w")
                     else: fij = None
                     if periodic: sys.stderr.write("comparing %3d, atoms cell with  %3d atoms cell: lcm: %3d \r" % (sl[iframe].nenv, sl[jframe].nenv, lcm(sl[iframe].nenv,sl[jframe].nenv))) 
-                    sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=kmode, fout=fij)          
+                    sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=kmode, fout=fij, peps = permanenteps)          
                     sim[iframe][jframe]=sim[jframe][iframe]=sij/np.sqrt(nrm[iframe]*nrm[jframe])
                 sys.stderr.write("Matrix row %d                           \r" % (iframe))
         else:      
             # multiple processors
             def dorow(irow, nf, sl, psim): 
                 for jframe in range(0,irow):
-                    sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=kmode)          
+                    sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=kmode, peps = permanenteps)          
                     psim[irow*nf+jframe]=sij/np.sqrt(nrm[irow]*nrm[jframe])  
                
             proclist = []   
@@ -459,6 +459,7 @@ if __name__ == '__main__':
       parser.add_argument("--usekit", action="store_true", help="Computes the least commond denominator of all structures and uses that as a reference state")      
       parser.add_argument("--kit", type=str, default="auto", help="Dictionary-style kit specification (e.g. --kit '{4:1,6:10}'")
       parser.add_argument("--kernel", type=str, default="match", help="Global kernel mode (e.g. --kernel average")      
+      parser.add_argument("--permanenteps", type=float, default="0.0", help="Tolerance level for approximate permanent (e.g. --permanenteps 1e-4")     
       parser.add_argument("--distance", action="store_true", help="Also prints out similarity (as kernel distance)")
       parser.add_argument("--np", type=int, default='1', help="Use multiple processes to compute the kernel matrix")
       parser.add_argument("--ij", type=str, default='', help="Compute and print diagnostics for the environment similarity between frames i,j (e.g. --ij 3,4)")
@@ -491,4 +492,4 @@ if __name__ == '__main__':
          envij=tuple(map(int,args.ij.split(",")))
    
                
-      main(args.filename, nd=args.n, ld=args.l, coff=args.c, gs=args.g, mu=args.mu, centerweight=args.cw, periodic=args.periodic, usekit=args.usekit, kit=args.kit, kmode=args.kernel, noatom=noatom, nocenter=nocenter, nprocs=args.np, verbose=args.verbose, envij=envij, prefix=args.prefix, nlandmark=args.nlandmarks, printsim=args.distance,ref_xyz=args.refxyz,nsafe=args.nsafe,rmfrom=args.delfrom)
+      main(args.filename, nd=args.n, ld=args.l, coff=args.c, gs=args.g, mu=args.mu, centerweight=args.cw, periodic=args.periodic, usekit=args.usekit, kit=args.kit, kmode=args.kernel, permanenteps=args.permanenteps, noatom=noatom, nocenter=nocenter, nprocs=args.np, verbose=args.verbose, envij=envij, prefix=args.prefix, nlandmark=args.nlandmarks, printsim=args.distance,ref_xyz=args.refxyz,nsafe=args.nsafe,rmfrom=args.delfrom)

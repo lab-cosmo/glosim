@@ -124,7 +124,7 @@ def lcm(a,b):
 #    
 #   return envk(strucA.globenv, strucB.globenv, alchem) 
 
-def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout=None):
+def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout=None, peps=0.0):
    # computes the SOAP similarity KERNEL between two structures by combining atom-centered kernels
    # possible kernel modes include:
    #   average :  scalar product between averaged kernels
@@ -229,9 +229,11 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
             for a in aidx:
                 if a in bidx and len(aidx[a])>0:
                     block=kk[np.ix_(aidx[a],bidx[a])]
-                    cost=cost*rndperm(block)
+                    if peps>0: cost=cost*rndperm(block, peps)
+                    else: cost=cost*xperm(block)
         else: # ouch! we must compute the whole thing, this is gonna cost
-            cost = rndperm(kk) # xperm(kk)
+            if peps>0: cost = rndperm(kk, peps)
+            else: cost = xperm(kk)
             
         cost = cost/np.math.factorial(nenv)/nenv        
 
