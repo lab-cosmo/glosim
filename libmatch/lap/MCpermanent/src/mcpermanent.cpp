@@ -1,3 +1,7 @@
+// (c) Sandip De 
+// 16th Oct 2015
+// Lausanne 
+// C++ implementation of python module to compute permanent of a matrix by random montecarlo 
 /* Functions to compute the permanent, given a numpy array */
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 #include <Python.h>
@@ -8,10 +12,10 @@
 #include <random>
 #include <cmath>
 // Array access macros.
-#define SM(x0, x1) (*(npy_double*)((PyArray_DATA(submatrix) + \
-                    (x0) * PyArray_STRIDES(submatrix)[0] +  \
-                    (x1) * PyArray_STRIDES(submatrix)[1])))
-#define SM_shape(x0) (int) PyArray_DIM(submatrix, x0)
+#define SM(x0, x1) (*(npy_double*)((PyArray_DATA(matrix) + \
+                    (x0) * PyArray_STRIDES(matrix)[0] +  \
+                    (x1) * PyArray_STRIDES(matrix)[1])))
+#define SM_shape(x0) (int) PyArray_DIM(matrix, x0)
 
 
 double fact(int n)
@@ -21,26 +25,27 @@ double fact(int n)
    return fn;
 }
 // Forward function declaration 
-static PyObject *mypermanent(PyObject *self, PyObject *args);
+static PyObject *mcpermanent(PyObject *self, PyObject *args);
 
 // Method list
 static PyMethodDef methods[] = {
-  { "mypermanent", mypermanent, METH_VARARGS, "Computes the permanent of a numpy using the approx method available"},
+  { "mcpermanent", mcpermanent, METH_VARARGS, "Computes the permanent of a numpy matrix by random montecarlo method upto given accuracy"},
   { NULL, NULL, 0, NULL } // Sentinel
 };
 
 // Module initialization
-PyMODINIT_FUNC initmypermanent(void) {
-  (void) Py_InitModule("mypermanent", methods);
+PyMODINIT_FUNC initmcpermanent(void) {
+  (void) Py_InitModule("mcpermanent", methods);
   import_array();
 }
 
-static npy_double perm(PyArrayObject *submatrix)
+static npy_double perm(PyArrayObject *matrix,PyFloatObject *eps)
 {
  //   int n=mtx.size();
-    int n = (int) PyArray_DIM(submatrix, 0);
+    int n = (int) PyArray_DIM(matrix, 0);
     std::vector<int> idx(n);
-    double eps=1e-3;
+//    double eps=1e-3;
+    double eps1=PyFloat_AS_DOUBLE(eps);
     for (int i=0; i<n; ++i) idx[i]=i;
     double pi, prm=0, prm2=0, fn=fact(n), ti;
     int i=0, istride=0, pstride=n*100; 
@@ -66,19 +71,20 @@ static npy_double perm(PyArrayObject *submatrix)
             ++istride; i=0; ti=double(istride)*double(pstride);
             double err=sqrt((prm2-prm*prm/ti)/ti/(ti-1) ) / (prm/ti);
             //std::cerr <<istride<< " "<<std::setprecision(10)<<fn*prm/ti<< " "<<err<< "\n";
-            if (err<eps) break;
+            if (err< eps1) break;
         }
     }
     return prm/ti*fn;
 }
 // This is a wrapper which chooses the optimal permanent function
-static PyObject *mypermanent(PyObject *self, PyObject *args) {
+static PyObject *mcpermanent(PyObject *self, PyObject *args) {
   // Parse the input
-  PyArrayObject *submatrix;
-  if (!PyArg_ParseTuple(args, "O!", &PyArray_Type, &submatrix)) {return NULL;}
-
+ 
+  PyArrayObject *matrix;
+  PyFloatObject *eps;
+  if (!PyArg_ParseTuple(args, "O!O!", &PyArray_Type, &matrix, &PyFloat_Type, &eps)) {return NULL;}
   // Compute the permanent
-  npy_double p = perm(submatrix);
+  npy_double p = perm(matrix,eps);
   return PyFloat_FromDouble(p);
 }
 

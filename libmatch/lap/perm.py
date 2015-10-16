@@ -1,15 +1,21 @@
 try:
     from permanent import permanent
-    from mypermanent import mypermanent
-    
 except:
     print >> sys.stderr, "Cannot compute permanent kernel without a permanent module installed in pythonpath"
     print >> sys.stderr, "Get it from https://github.com/peteshadbolt/permanent "
     exit()
-
+try:
+    from mcpermanent import mcpermanent
+except:
+    print >> sys.stderr, "Cannot compute MC permanent kernel without a permanent module installed in pythonpath"
+    print >> sys.stderr, "Get it from https://github.com/sandipde/MCpermanent "
+    exit()
 import numpy as np    
     
-__all__ = [ "xperm", "rndperm" ]
+__all__ = [ "xperm", "rndperm","mcperm" ]
+
+def mcperm(mtx, eps=1e-3):
+     return mcpermanent(mtx,eps)
 
 def xperm(mtx):
      return permanent(np.array(mtx,dtype=complex)).real
@@ -44,11 +50,12 @@ if __name__ == "__main__":
     
     filename = sys.argv[1]
     mtx=np.loadtxt(filename)
+    mtx=np.random.rand(10,10)
     st=time.time()
     new=rndperm(mtx, eps=1e-3)
     tnew = time.time()-st    
     st=time.time()
-    cnew=mypermanent(mtx)
+    cnew=mcpermanent(mtx,1e-3)
     ctnew = time.time() -st
     st=time.time()
     if len(mtx[0])<30: ref=xperm(mtx)

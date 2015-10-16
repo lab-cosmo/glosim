@@ -10,7 +10,7 @@
 import sys
 import quippy
 from lap.lap import best_pairs, best_cost, lcm_best_cost
-from lap.perm import xperm, rndperm
+from lap.perm import xperm, mcperm
 import numpy as np
 from environments import environ, alchemy, envk
 __all__ = [ "structk", "structure" ]
@@ -229,10 +229,10 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
             for a in aidx:
                 if a in bidx and len(aidx[a])>0:
                     block=kk[np.ix_(aidx[a],bidx[a])]
-                    if peps>0: cost=cost*rndperm(block, peps)
+                    if peps>0: cost=cost*mcperm(block, peps)
                     else: cost=cost*xperm(block)
         else: # ouch! we must compute the whole thing, this is gonna cost
-            if peps>0: cost = rndperm(kk, peps)
+            if peps>0: cost = mcperm(kk, peps)
             else: cost = xperm(kk)
             
         cost = cost/np.math.factorial(nenv)/nenv        
