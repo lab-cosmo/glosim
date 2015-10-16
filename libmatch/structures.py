@@ -172,7 +172,7 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
          envA = strucA.getenv(za, ia)         
          ikb = 0
          for zb, nzb in nspeciesB:
-            acab = alchem.getpair(za,zb)
+            acab = 1.0 # alchem.getpair(za,zb)  ## DO NOT INCLUDE AN EXTRA PAIR
             for ib in xrange(nzb):
                envB = strucB.getenv(zb, ib)
                if alchem.mu > 0 and (strucA.ismissing(za, ia) ^ strucB.ismissing(zb, ib)):

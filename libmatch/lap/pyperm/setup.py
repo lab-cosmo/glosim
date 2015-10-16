@@ -3,10 +3,10 @@
 from distutils.core import setup, Extension
 import numpy
 
-setup(name             = "mypermanent",
+setup(name             = "rndperm",
       version          = "0.1.3",
       description      = "Calculates the permanent of a Numpy matrix",
-      author           = "Pete Shadbolt",
+      author           = "Sandip De",
       author_email     = "pete.shadbolt@gmail.com",
       maintainer       = "pete.shadbolt@gmail.com",
       url              = "https://github.com/peteshadbolt/permanent",
