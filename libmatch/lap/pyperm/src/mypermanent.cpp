@@ -25,7 +25,7 @@ static PyObject *mypermanent(PyObject *self, PyObject *args);
 
 // Method list
 static PyMethodDef methods[] = {
-  { "permanent", mypermanent, METH_VARARGS, "Computes the permanent of a numpy using the approx method available"},
+  { "mypermanent", mypermanent, METH_VARARGS, "Computes the permanent of a numpy using the approx method available"},
   { NULL, NULL, 0, NULL } // Sentinel
 };
 
@@ -40,7 +40,7 @@ static npy_double perm(PyArrayObject *submatrix)
  //   int n=mtx.size();
     int n = (int) PyArray_DIM(submatrix, 0);
     std::vector<int> idx(n);
-    double eps=1e-4;
+    double eps=1e-3;
     for (int i=0; i<n; ++i) idx[i]=i;
     double pi, prm=0, prm2=0, fn=fact(n), ti;
     int i=0, istride=0, pstride=n*100; 
@@ -69,7 +69,7 @@ static npy_double perm(PyArrayObject *submatrix)
             if (err<eps) break;
         }
     }
-    return prm/ti*fact(n);
+    return prm/ti*fn;
 }
 // This is a wrapper which chooses the optimal permanent function
 static PyObject *mypermanent(PyObject *self, PyObject *args) {

@@ -1,1 +1,1 @@
-import mypermanent
+from mypermanent import mypermanent

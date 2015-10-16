@@ -1,5 +1,7 @@
 try:
     from permanent import permanent
+    from mypermanent import mypermanent
+    
 except:
     print >> sys.stderr, "Cannot compute permanent kernel without a permanent module installed in pythonpath"
     print >> sys.stderr, "Get it from https://github.com/peteshadbolt/permanent "
@@ -45,7 +47,9 @@ if __name__ == "__main__":
     st=time.time()
     new=rndperm(mtx, eps=1e-3)
     tnew = time.time()-st    
-    
+    st=time.time()
+    cnew=mypermanent(mtx)
+    ctnew = time.time() -st
     st=time.time()
     if len(mtx[0])<30: ref=xperm(mtx)
     else: ref=0
@@ -53,3 +57,4 @@ if __name__ == "__main__":
     
     print "Reference:          ", ref, " time: ", tref
     print "New_method:         ", new, " time: ", tnew
+    print "New_method C++:         ", cnew, " time: ",ctnew
