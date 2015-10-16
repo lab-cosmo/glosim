@@ -1,26 +1,8 @@
-try:
-    from permanent import permanent
-except:
-    print >> sys.stderr, "Cannot compute permanent kernel without a permanent module installed in pythonpath"
-    print >> sys.stderr, "Get it from https://github.com/peteshadbolt/permanent "
-    exit()
-try:
-    from mcpermanent import mcpermanent
-except:
-    print >> sys.stderr, "Cannot compute MC permanent kernel without a permanent module installed in pythonpath"
-    print >> sys.stderr, "Get it from https://github.com/sandipde/MCpermanent "
-    exit()
 import numpy as np    
     
 __all__ = [ "xperm", "rndperm","mcperm" ]
 
-def mcperm(mtx, eps=1e-3):
-     return mcpermanent(mtx,eps)
-
-def xperm(mtx):
-     return permanent(np.array(mtx,dtype=complex)).real
-   
-def rndperm(mtx, eps = 1e-3, maxtry=None):
+def _mcperm(mtx, eps = 1e-3, maxtry=None):
     sz = len(mtx[0])
     idx = np.asarray(xrange(sz),int)
     
@@ -42,23 +24,39 @@ def rndperm(mtx, eps = 1e-3, maxtry=None):
             print i/pstride, prm/i, err; 
             if ((not maxtry is None) and i>maxtry) or err<eps: break
             
-    return prm/i*np.math.factorial(sz)
-    return 0
+    return prm/i*np.math.factorial(sz)    
 
+
+# Monte Carlo evaluation of the permanent
+try:
+    from permanent import permanent_mc, permanent_ryser
+    def mcperm(mtx, eps=1e-3):
+        return permanent_mc(mtx,eps)
+    def xperm(mtx, eps=1e-3):
+        return permanent_ryser(mtx)
+except:
+    print >> sys.stderr, "Cannot find mcpermanent.so module in pythonpath. Permanent evaluations will be very slow and approximate."
+    print >> sys.stderr, "Get it from https://github.com/sandipde/MCpermanent "
+    def mcperm(mtx, eps=1e-2):
+        return _mcperm(mtx,eps)
+    def xperm(mtx, eps=1e-6):
+        return _mcperm(mtx,eps)
+   
 import time, sys
 if __name__ == "__main__":
     
     filename = sys.argv[1]
     mtx=np.loadtxt(filename)
-    mtx=np.random.rand(10,10)
+    #mtx=np.random.rand(10,10)
     st=time.time()
-    new=rndperm(mtx, eps=1e-3)
+    new=_mcperm(mtx, eps=1e-2)
     tnew = time.time()-st    
     st=time.time()
-    cnew=mcpermanent(mtx,1e-3)
+    cnew=mcperm(mtx,1e-3)
     ctnew = time.time() -st
     st=time.time()
-    if len(mtx[0])<30: ref=xperm(mtx)
+    if len(mtx[0])<30: 
+        ref=xperm(mtx)
     else: ref=0
     tref = time.time()-st
     
