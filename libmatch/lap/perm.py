@@ -1,5 +1,5 @@
 import numpy as np    
-    
+import sys    
 __all__ = [ "xperm", "rndperm","mcperm" ]
 
 def _mcperm(mtx, eps = 1e-3, maxtry=None):
