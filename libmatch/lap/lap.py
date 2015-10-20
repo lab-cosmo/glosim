@@ -16,7 +16,7 @@ try:
         return pair
 except:
     from munkres import linear_assignment
-    
+    print >> sys.stderr, "WARNING! fast hungarian library is not available \n"  
 def best_pairs(matrix):
     return linear_assignment(matrix)
 
