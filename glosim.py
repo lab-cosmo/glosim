@@ -15,7 +15,7 @@ from random import randint
 from libmatch.environments import alchemy, environ
 from libmatch.structures import structk, structure
 import numpy as np
-
+from copy import copy 
 def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanenteps, nocenter, noatom, nprocs, verbose=False, envij=None, usekit=False, kit="auto", prefix="",nlandmark=0, printsim=False,ref_xyz="",nsafe=0,rmfrom='ref'):
     print >>sys.stderr, "    ___  __    _____  ___  ____  __  __ ";
     print >>sys.stderr, "   / __)(  )  (  _  )/ __)(_  _)(  \/  )";
@@ -186,11 +186,6 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
 
     # If ref landmarks are given and rectangular matrix is the only desired output             
     if (ref_xyz !=""):
-#        print >> sys.stderr, "================================REFERENCE XYZ FILE GIVEN=====================================\n",
-#        print >> sys.stderr, "Only Rectangular Matrix Containing Distances Between Two Sets of Input Files Will be Computed.\n",
-#        print >> sys.stderr, "Reading Referance xyz file: ", ref_xyz
-#        alref = quippy.AtomsList(ref_xyz);
-#        print >> sys.stderr, len(alref.n) , " Configurations Read"
         print >> sys.stderr, "Computing SOAPs"
         # sets alchemical matrix
         alchem = alchemy(mu=mu)
@@ -325,8 +320,8 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
         sim_rect=np.zeros((m,nf))
         dist_list=[]
         landmarks=[]         
-        
-        iframe=randint(0,nf-1)  # picks a random frame
+        iframe=0       
+#        iframe=randint(0,nf-1)  # picks a random frame
         iland=0
         landmarks.append(iframe)
         for jframe in range(nf):            
@@ -347,12 +342,47 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
             
             sys.stderr.write("Landmark %5d    maxd %f                          \r" % (iland, maxd))
             iframe=maxj
-            for jframe in range(nf):                
+            if (nprocs<=1):
+             for jframe in range(nf):                
                 sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps)
                 sim_rect[iland][jframe]=sij/np.sqrt(nrm[iframe]*nrm[jframe])
                 dij = np.sqrt(max(0,2-2*sij))
                 if(dij<dist_list[jframe]): dist_list[jframe]=dij
-                
+            else:
+		      # multiple processors
+              def docol(pdist,psim,iframe,jframe):                                
+                  sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps)
+                  psim[jframe]=sij/np.sqrt(nrm[iframe]*nrm[jframe])
+                  dij= np.sqrt(max(0,2-2*sij))
+                  if(dij<dist_list[jframe]): pdist[jframe]=dist_list[jframe]-dij
+               #   print iframe,jframe
+               
+              proclist = []   
+              pdist = Array('d', nf, lock=False)
+              psim = Array('d', nf, lock=False)
+      #        pdist=0.0
+              for jframe in range(nf): 
+                 while(len(proclist)>=nprocs):
+                    #print "proclist",proclist
+                    for ip in proclist:
+                        if not ip.is_alive(): proclist.remove(ip)            
+                        time.sleep(0.01)
+                 sp = Process(target=docol, name="docol proc", kwargs={"pdist":pdist,"psim":psim,"iframe":iframe,"jframe":jframe})  
+                 proclist.append(sp)
+                 sp.start()
+                 sys.stderr.write("Landmark %d, Matrix row %d, %d active processes     \r" % (iland,jframe, len(proclist)))
+             
+                 # waits for all threads to finish
+              for ip in proclist:
+                   while ip.is_alive(): ip.join(0.1)  
+         
+                # copies from the shared memory array to Sim.
+              for jframe in range(nf):
+				   dist_list[jframe]=dist_list[jframe]-pdist[jframe]
+				   sim_rect[iland][jframe]=psim[jframe]    
+              #========================================================================        
+              
+              
         for iland in range(0,m):
             for jland in range(0,m):
                 sim[iland,jland] = sim_rect[iland, landmarks[jland] ]
