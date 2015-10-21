@@ -257,12 +257,42 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
 
         sim = np.zeros((nf,nf_ref))
         sys.stderr.write("Computing Similarity Matrix           \n")
-        for iframe in range(nf):
-          sys.stderr.write("Matrix row %d                           \r" % (iframe))
-          for jframe in range(nf_ref):
-            sij = structk(sl[iframe], sl_ref[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps)
-            sim[iframe][jframe]=sij/np.sqrt(nrm[iframe]*nrm_ref[jframe])
-           
+        
+        if (nprocs<=1):
+         for iframe in range(nf):
+           sys.stderr.write("Matrix row %d                           \r" % (iframe))
+           for jframe in range(nf_ref):
+             sij = structk(sl[iframe], sl_ref[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps)
+             sim[iframe][jframe]=sij/np.sqrt(nrm[iframe]*nrm_ref[jframe])
+        else:    
+        # multiple processors
+            def dorow(irow, nf_ref, psim): 
+                for jframe in range(0,nf_ref):
+                    sij = structk(sl[iframe], sl_ref[jframe], alchem, periodic, mode=kmode,fout=None, peps = permanenteps)          
+                    psim[irow*nf_ref+jframe]=sij/np.sqrt(nrm[irow]*nrm_ref[jframe])  
+               
+            proclist = []   
+            psim = Array('d', nf*nf_ref, lock=False)      
+            for iframe in range (0, nf):
+                while(len(proclist)>=nprocs):
+                    for ip in proclist:
+                        if not ip.is_alive(): proclist.remove(ip)            
+                        time.sleep(0.01)
+                sp = Process(target=dorow, name="doframe proc", kwargs={"irow":iframe, "nf_ref":nf_ref, "psim": psim})  
+                proclist.append(sp)
+                sp.start()
+                sys.stderr.write("Matrix row %d, %d active processes     \r" % (iframe, len(proclist)))
+            
+            # waits for all threads to finish
+            for ip in proclist:
+                while ip.is_alive(): ip.join(0.1)  
+         
+            # copies from the shared memory array to Sim.
+            for iframe in range (0, nf):      
+                for jframe in range(0,nf_ref):
+                    sim[iframe,jframe]=psim[iframe*nf_ref+jframe]   
+        #===================================================================            
+                    
         fkernel = open(prefix+"_rect.k", "w")  
         fkernel.write("# Rectangular Kernel matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s" % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)) )
         if (usekit): fkernel.write( " Using reference kit: %s\n" % (str(kit)) )
@@ -288,7 +318,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
     elif (nlandmark>0):
         print >> sys.stderr, "##### FARTHEST POINT SAMPLING ######"
         print >> sys.stderr, "Selecting",nlandmark,"Frames from",nf, "Frames"
-        print >> sys.stderr, "##### Additional output files=sim-rect.dat, landmarks.xyz ######"
+        print >> sys.stderr, "####################################"
          
         m = nlandmark
         sim = np.zeros((m,m))
@@ -386,7 +416,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
                 sys.stderr.write("Matrix row %d                           \r" % (iframe))
         else:      
             # multiple processors
-            def dorow(irow, nf, sl, psim): 
+            def dorow(irow, nf, psim): 
                 for jframe in range(0,irow):
                     sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=kmode, peps = permanenteps)          
                     psim[irow*nf+jframe]=sij/np.sqrt(nrm[irow]*nrm[jframe])  
@@ -399,7 +429,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
                     for ip in proclist:
                         if not ip.is_alive(): proclist.remove(ip)            
                         time.sleep(0.01)
-                sp = Process(target=dorow, name="doframe proc", kwargs={"irow":iframe, "nf":nf, "psim": psim, "sl":sl})  
+                sp = Process(target=dorow, name="doframe proc", kwargs={"irow":iframe, "nf":nf, "psim": psim})  
                 proclist.append(sp)
                 sp.start()
                 sys.stderr.write("Matrix row %d, %d active processes     \r" % (iframe, len(proclist)))
