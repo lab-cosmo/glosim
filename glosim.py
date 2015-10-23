@@ -7,7 +7,6 @@
 # atom number and kinds, and sports the infrastructure for introducing an
 # alchemical similarity kernel to match different atomic species
 
-import quippy
 import sys, time
 from multiprocessing import Process, Value, Array
 import argparse
@@ -15,6 +14,8 @@ from random import randint
 from libmatch.environments import alchemy, environ
 from libmatch.structures import structk, structure
 import numpy as np
+import quippy
+
 
 def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanenteps, nocenter, noatom, nprocs, verbose=False, envij=None, usekit=False, kit="auto", prefix="",nlandmark=0, printsim=False,ref_xyz="",nsafe=0,rmfrom='ref'):
     print >>sys.stderr, "    ___  __    _____  ___  ____  __  __ ";
