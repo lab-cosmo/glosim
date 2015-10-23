@@ -16,7 +16,6 @@ from libmatch.structures import structk, structure
 import numpy as np
 import quippy
 
-
 def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanenteps, nocenter, noatom, nprocs, verbose=False, envij=None, usekit=False, kit="auto", prefix="",nlandmark=0, printsim=False,ref_xyz="",nsafe=0,rmfrom='ref'):
     print >>sys.stderr, "    ___  __    _____  ___  ____  __  __ ";
     print >>sys.stderr, "   / __)(  )  (  _  )/ __)(_  _)(  \/  )";
@@ -187,11 +186,6 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
 
     # If ref landmarks are given and rectangular matrix is the only desired output             
     if (ref_xyz !=""):
-#        print >> sys.stderr, "================================REFERENCE XYZ FILE GIVEN=====================================\n",
-#        print >> sys.stderr, "Only Rectangular Matrix Containing Distances Between Two Sets of Input Files Will be Computed.\n",
-#        print >> sys.stderr, "Reading Referance xyz file: ", ref_xyz
-#        alref = quippy.AtomsList(ref_xyz);
-#        print >> sys.stderr, len(alref.n) , " Configurations Read"
         print >> sys.stderr, "Computing SOAPs"
         # sets alchemical matrix
         alchem = alchemy(mu=mu)
@@ -258,12 +252,42 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
 
         sim = np.zeros((nf,nf_ref))
         sys.stderr.write("Computing Similarity Matrix           \n")
-        for iframe in range(nf):
-          sys.stderr.write("Matrix row %d                           \r" % (iframe))
-          for jframe in range(nf_ref):
-            sij = structk(sl[iframe], sl_ref[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps)
-            sim[iframe][jframe]=sij/np.sqrt(nrm[iframe]*nrm_ref[jframe])
-           
+        
+        if (nprocs<=1):
+         for iframe in range(nf):
+           sys.stderr.write("Matrix row %d                           \r" % (iframe))
+           for jframe in range(nf_ref):
+             sij = structk(sl[iframe], sl_ref[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps)
+             sim[iframe][jframe]=sij/np.sqrt(nrm[iframe]*nrm_ref[jframe])
+        else:    
+        # multiple processors
+            def dorow(irow, nf_ref, psim): 
+                for jframe in range(0,nf_ref):
+                    sij = structk(sl[iframe], sl_ref[jframe], alchem, periodic, mode=kmode,fout=None, peps = permanenteps)          
+                    psim[irow*nf_ref+jframe]=sij/np.sqrt(nrm[irow]*nrm_ref[jframe])  
+               
+            proclist = []   
+            psim = Array('d', nf*nf_ref, lock=False)      
+            for iframe in range (0, nf):
+                while(len(proclist)>=nprocs):
+                    for ip in proclist:
+                        if not ip.is_alive(): proclist.remove(ip)            
+                        time.sleep(0.01)
+                sp = Process(target=dorow, name="doframe proc", kwargs={"irow":iframe, "nf_ref":nf_ref, "psim": psim})  
+                proclist.append(sp)
+                sp.start()
+                sys.stderr.write("Matrix row %d, %d active processes     \r" % (iframe, len(proclist)))
+            
+            # waits for all threads to finish
+            for ip in proclist:
+                while ip.is_alive(): ip.join(0.1)  
+         
+            # copies from the shared memory array to Sim.
+            for iframe in range (0, nf):      
+                for jframe in range(0,nf_ref):
+                    sim[iframe,jframe]=psim[iframe*nf_ref+jframe]   
+        #===================================================================            
+                    
         fkernel = open(prefix+"_rect.k", "w")  
         fkernel.write("# Rectangular Kernel matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s" % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)) )
         if (usekit): fkernel.write( " Using reference kit: %s\n" % (str(kit)) )
@@ -289,15 +313,15 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
     elif (nlandmark>0):
         print >> sys.stderr, "##### FARTHEST POINT SAMPLING ######"
         print >> sys.stderr, "Selecting",nlandmark,"Frames from",nf, "Frames"
-        print >> sys.stderr, "##### Additional output files=sim-rect.dat, landmarks.xyz ######"
+        print >> sys.stderr, "####################################"
          
         m = nlandmark
         sim = np.zeros((m,m))
         sim_rect=np.zeros((m,nf))
         dist_list=[]
         landmarks=[]         
-        
-        iframe=randint(0,nf-1)  # picks a random frame
+        iframe=0       
+#        iframe=randint(0,nf-1)  # picks a random frame
         iland=0
         landmarks.append(iframe)
         for jframe in range(nf):            
@@ -318,12 +342,47 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
             
             sys.stderr.write("Landmark %5d    maxd %f                          \r" % (iland, maxd))
             iframe=maxj
-            for jframe in range(nf):                
+            if (nprocs<=1):
+             for jframe in range(nf):                
                 sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps)
                 sim_rect[iland][jframe]=sij/np.sqrt(nrm[iframe]*nrm[jframe])
                 dij = np.sqrt(max(0,2-2*sij))
                 if(dij<dist_list[jframe]): dist_list[jframe]=dij
-                
+            else:
+		      # multiple processors
+              def docol(pdist,psim,iframe,jframe):                                
+                  sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps)
+                  psim[jframe]=sij/np.sqrt(nrm[iframe]*nrm[jframe])
+                  dij= np.sqrt(max(0,2-2*sij))
+                  if(dij<dist_list[jframe]): pdist[jframe]=dist_list[jframe]-dij
+               #   print iframe,jframe
+               
+              proclist = []   
+              pdist = Array('d', nf, lock=False)
+              psim = Array('d', nf, lock=False)
+      #        pdist=0.0
+              for jframe in range(nf): 
+                 while(len(proclist)>=nprocs):
+                    #print "proclist",proclist
+                    for ip in proclist:
+                        if not ip.is_alive(): proclist.remove(ip)            
+                        time.sleep(0.01)
+                 sp = Process(target=docol, name="docol proc", kwargs={"pdist":pdist,"psim":psim,"iframe":iframe,"jframe":jframe})  
+                 proclist.append(sp)
+                 sp.start()
+                 sys.stderr.write("Landmark %d, Matrix row %d, %d active processes     \r" % (iland,jframe, len(proclist)))
+             
+                 # waits for all threads to finish
+              for ip in proclist:
+                   while ip.is_alive(): ip.join(0.1)  
+         
+                # copies from the shared memory array to Sim.
+              for jframe in range(nf):
+				   dist_list[jframe]=dist_list[jframe]-pdist[jframe]
+				   sim_rect[iland][jframe]=psim[jframe]    
+              #========================================================================        
+              
+              
         for iland in range(0,m):
             for jland in range(0,m):
                 sim[iland,jland] = sim_rect[iland, landmarks[jland] ]
@@ -387,7 +446,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
                 sys.stderr.write("Matrix row %d                           \r" % (iframe))
         else:      
             # multiple processors
-            def dorow(irow, nf, sl, psim): 
+            def dorow(irow, nf, psim): 
                 for jframe in range(0,irow):
                     sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=kmode, peps = permanenteps)          
                     psim[irow*nf+jframe]=sij/np.sqrt(nrm[irow]*nrm[jframe])  
@@ -400,7 +459,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
                     for ip in proclist:
                         if not ip.is_alive(): proclist.remove(ip)            
                         time.sleep(0.01)
-                sp = Process(target=dorow, name="doframe proc", kwargs={"irow":iframe, "nf":nf, "psim": psim, "sl":sl})  
+                sp = Process(target=dorow, name="doframe proc", kwargs={"irow":iframe, "nf":nf, "psim": psim})  
                 proclist.append(sp)
                 sp.start()
                 sys.stderr.write("Matrix row %d, %d active processes     \r" % (iframe, len(proclist)))
