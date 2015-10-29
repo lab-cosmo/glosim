@@ -8,11 +8,11 @@
 # alchemical similarity kernel to match different atomic species
 
 import sys
-import quippy
 from lap.lap import best_pairs, best_cost, lcm_best_cost
 from lap.perm import xperm, mcperm
 import numpy as np
 from environments import environ, alchemy, envk
+import quippy
 __all__ = [ "structk", "structure" ]
 
    
@@ -172,14 +172,13 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
          envA = strucA.getenv(za, ia)         
          ikb = 0
          for zb, nzb in nspeciesB:
-            acab = 1.0 # alchem.getpair(za,zb)  ## DO NOT INCLUDE AN EXTRA PAIR
             for ib in xrange(nzb):
                envB = strucB.getenv(zb, ib)
                if alchem.mu > 0 and (strucA.ismissing(za, ia) ^ strucB.ismissing(zb, ib)):
                    # includes a penalty dependent on "mu", in a way that is consistent with the definition of kernel distance
-                   kk[ika,ikb] = acab - alchem.mu/2                  
+                   kk[ika,ikb] = exp(-alchem.mu)
                else:
-                  kk[ika,ikb] = envk(envA, envB, alchem) * acab               
+                  kk[ika,ikb] = envk(envA, envB, alchem)              
                ikb+=1
          ika+=1
    aidx = {}
@@ -208,6 +207,12 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
          for e in r:
             fout.write("%8.4e " % (e) )
          fout.write("\n")
+      fout.write("# environment kernel eigenvalues: \n")      
+      ev = np.linalg.eigvals(kk)
+      for e in ev:
+          fout.write("(%8.4e,%8.4e) " % (e.real,e.imag) )
+      fout.write("\n");
+         
        
 
       
@@ -224,16 +229,17 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
         cost = 1-hun/nenv
    elif mode == "permanent":
             
-        if not periodic and len(alchem.rules) == 0 : # special case, compute partial permanents over the same-specie blocks
-            cost=1.0
-            for a in aidx:
-                if a in bidx and len(aidx[a])>0:
-                    block=kk[np.ix_(aidx[a],bidx[a])]
-                    if peps>0: cost=cost*mcperm(block, peps)
-                    else: cost=cost*xperm(block)
-        else: # ouch! we must compute the whole thing, this is gonna cost
-            if peps>0: cost = mcperm(kk, peps)
-            else: cost = xperm(kk)
+    #~ if not periodic and len(alchem.rules) == 0 : # special case, compute partial permanents over the same-specie blocks
+        #~ cost=1.0
+        #~ for a in aidx:
+            #~ if a in bidx and len(aidx[a])>0:
+                #~ block=kk[np.ix_(aidx[a],bidx[a])]
+                #~ if peps>0: cost=cost*mcperm(block, peps)
+                #~ else: cost=cost*xperm(block)
+    #~ else: # ouch! we must compute the whole thing, this is gonna cost
+        # there is no place to hide: cross-species environments are not necessarily zero 
+        if peps>0: cost = mcperm(kk, peps)
+        else: cost = xperm(kk)
             
         cost = cost/np.math.factorial(nenv)/nenv        
 
