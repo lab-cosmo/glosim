@@ -2,15 +2,16 @@ import numpy as np
 import sys    
 __all__ = [ "xperm", "rndperm","mcperm" ]
 
-def _mcperm(mtx, eps = 1e-3, maxtry=None):
+def _mcperm(mtx, eps = 1e-3, ntry=None, seed=None):
     sz = len(mtx[0])
     idx = np.asarray(xrange(sz),int)
     
     prm = 0
     prm2 = 0
-    pstride=100*sz
-    if not maxtry is None:  maxtry *= pstride
+    pstride = 100*sz
     i=0
+    if not seed is None: 
+        np.random.seed(seed)
     while True:
         np.random.shuffle(idx)
         pi = 1.
@@ -19,28 +20,30 @@ def _mcperm(mtx, eps = 1e-3, maxtry=None):
         prm += pi
         prm2 += pi*pi
         i+=1
-        if (i)%pstride==0:
+        if (not ntry is None) and i >= ntry: break
+        if ntry is None and (i)%pstride==0:
             err=np.sqrt( (prm2-prm*prm/i)/i/(i-1) ) / (prm/i)
-            print i/pstride, prm/i, err; 
-            if ((not maxtry is None) and i>maxtry) or err<eps: break
+            if err<eps: break
             
     return prm/i*np.math.factorial(sz)    
 
 
 # Monte Carlo evaluation of the permanent
 try:
-    from permanent import permanent_mc, permanent_ryser
-    def mcperm(mtx, eps=1e-3):
-        return permanent_mc(mtx,eps)
-    def xperm(mtx, eps=1e-3):
+    from permanent import permanent_mc, permanent_ryser, regmatch
+    def mcperm(mtx, eps=1e-3, ntry=None, seed=None):  # , ntry=100000, seed=12345): #
+        return permanent_mc(mtx,eps,0 if (ntry is None) else ntry, 0 if (seed is None) else seed)
+    def xperm(mtx):
         return permanent_ryser(mtx)
 except:
     print >> sys.stderr, "Cannot find mcpermanent.so module in pythonpath. Permanent evaluations will be very slow and approximate."
     print >> sys.stderr, "Get it from https://github.com/sandipde/MCpermanent "
-    def mcperm(mtx, eps=1e-2):
-        return _mcperm(mtx,eps)
+    def mcperm(mtx, eps=1e-2, ntry=None, seed=None):
+        return _mcperm(mtx,eps,ntry,seed)
     def xperm(mtx, eps=1e-6):
         return _mcperm(mtx,eps)
+    def regmatch(mtx, gamma, eps):
+        raise ValueError("No Python equivalent to regmatch function...")
    
 import time, sys
 if __name__ == "__main__":

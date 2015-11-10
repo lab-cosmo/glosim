@@ -23,6 +23,7 @@ def best_pairs(matrix):
 def best_cost(matrix):
   hun=linear_assignment(matrix)
   cost=0.0
+  print hun
   for pair in hun:
      cost+=matrix[pair[0],pair[1]]
   return cost
@@ -182,7 +183,7 @@ def lcm_best_cost2(gmtx, thresh = 1e-10):
     return sum(bcl)
     
 if __name__ == "__main__":
-    
+     
     filename = sys.argv[1]
     mtx=1-np.loadtxt(filename)
     np.set_printoptions(linewidth=1000)
@@ -196,10 +197,10 @@ if __name__ == "__main__":
     
     st=time.time()
     ref=0
-    #ref=lcm_best_cost1(mtx)
+    ref=best_cost(mtx)
     tref = time.time()-st
     
-    print "Reference:          ", ref, " time: ", tref
-    print "New_method:         ", new, " time: ", tnew
-    print "New_method(approx): ", apx, " time: ", tapx
+    print "Reference:          ", 1-ref/len(mtx), " time: ", tref
+    print "New_method:         ", 1-new/len(mtx), " time: ", tnew
+    print "New_method(approx): ", 1-apx/len(mtx), " time: ", tapx
     

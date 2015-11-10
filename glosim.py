@@ -181,7 +181,11 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
     sys.stderr.write("Computing kernel normalization           \n")
     nrm = np.zeros(nf,float)
     for iframe in range (0, nf):           
-        sii = structk(sl[iframe], sl[iframe], alchem, periodic, mode=kmode, fout=None, peps=permanenteps)        
+        if verbose:
+            fii = open(prefix+".environ-"+str(iframe)+"-"+str(iframe)+".dat", "w")
+        else:
+            fii = None
+        sii = structk(sl[iframe], sl[iframe], alchem, periodic, mode=kmode, fout=fii, peps=permanenteps)        
         nrm[iframe]=sii        
 
     # If ref landmarks are given and rectangular matrix is the only desired output             
@@ -400,14 +404,14 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
         else: fkernel.write("\n")
         for iframe in range(0,m):
             for x in sim[iframe][0:m]:
-                fkernel.write("%16.8e " % (x))
+                fkernel.write("%20.12e " % (x))
             fkernel.write("\n")   
         fkernel.close()
         
         fkernel = open(prefix+".oos.k", "w")  
         for jframe in range(0,nf):
             for x in sim_rect[:,jframe]:
-                fkernel.write("%16.8e " % (x))
+                fkernel.write("%20.12e " % (x))
             fkernel.write("\n")   
         fkernel.close()            
             

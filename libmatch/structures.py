@@ -9,7 +9,7 @@
 
 import sys
 from lap.lap import best_pairs, best_cost, lcm_best_cost
-from lap.perm import xperm, mcperm
+from lap.perm import xperm, mcperm, regmatch
 import numpy as np
 from environments import environ, alchemy, envk
 import quippy
@@ -205,7 +205,7 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
       fout.write("# environment kernel matrix: \n")      
       for r in kk:
          for e in r:
-            fout.write("%8.4e " % (e) )
+            fout.write("%20.14e " % (e) )
          fout.write("\n")
       fout.write("# environment kernel eigenvalues: \n")      
       ev = np.linalg.eigvals(kk)
@@ -242,7 +242,8 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
         else: cost = xperm(kk)
             
         cost = cost/np.math.factorial(nenv)/nenv        
-
+   elif mode == "regmatch":
+       cost=regmatch(kk, 3e-1,1e-5)
    else: raise ValueError("Unknown global fingerprint mode ", mode)
    
          

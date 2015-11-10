@@ -11,23 +11,59 @@
 #include <algorithm>
 #include <random>
 #include <cmath>
+#include <iostream>
 // Array access macros.
+
 #define SM(x0, x1) (*(npy_double*) (( (char*) PyArray_DATA(matrix) + \
                     (x0) * PyArray_STRIDES(matrix)[0] +  \
                     (x1) * PyArray_STRIDES(matrix)[1])))
 #define SM_shape(x0) (int) PyArray_DIM(matrix, x0)
 
+template <typename T>
+class Matrix
+{
+        std::vector<T> inner_;
+        unsigned int dimx_, dimy_;
+
+public:
+        unsigned int size() const { return dimx_; } 
+
+        Matrix (unsigned int dimx, unsigned int dimy)
+                : dimx_ (dimx), dimy_ (dimy)
+        {
+                inner_.resize (dimx_*dimy_);
+        }
+
+        inline T operator()(unsigned int x, unsigned int y) const
+        {
+                if (x >= dimx_ || y>= dimy_)
+                        throw 0; // ouch
+                return inner_[dimx_*y + x];
+        }
+        
+        inline T& operator()(unsigned int x, unsigned int y)
+        {
+                if (x >= dimx_ || y>= dimy_)
+                        throw 0; // ouch
+                return inner_[dimx_*y + x];
+        }
+        
+};
 
 // Forward function declaration 
 static PyObject *permanent_mc(PyObject *self, PyObject *args);
 // Forward function declaration 
 static PyObject *permanent_ryser(PyObject *self, PyObject *args);
+// Forward function declaration 
+static PyObject *regmatch(PyObject *self, PyObject *args);
+
 
 
 // Method list
 static PyMethodDef methods[] = {
   { "permanent_mc", permanent_mc, METH_VARARGS, "Computes the permanent of a numpy matrix by random montecarlo method upto given accuracy"},
   { "permanent_ryser", permanent_ryser, METH_VARARGS, "Computes the permanent of a numpy matrix by Ryser algorithm"},
+  { "regmatch", regmatch, METH_VARARGS, "Computes the permanent of a numpy matrix by Ryser algorithm"},
   { NULL, NULL, 0, NULL } // Sentinel
 };
 
@@ -43,23 +79,28 @@ double fact(int n)
    return fn;
 }
 
-static npy_double _mcperm(PyArrayObject *matrix,PyFloatObject *eps)
+static npy_double _mcperm(PyArrayObject *matrix, PyFloatObject *eps, PyIntObject *ntry, PyIntObject *seed)
 {
  //   int n=mtx.size();
     int n = (int) PyArray_DIM(matrix, 0);
     std::vector<int> idx(n);
 //    double eps=1e-3;
     double eps1=PyFloat_AS_DOUBLE(eps);
+    int ntry1=PyInt_AS_LONG(ntry);
+    int seed1=PyInt_AS_LONG(seed);
     for (int i=0; i<n; ++i) idx[i]=i;
-    double pi, prm=0, prm2=0, fn=fact(n), ti;
+    double pi, prm=0, prm2=0, fn=fact(n), ti=0;
     int i=0, istride=0, pstride=n*100; 
+    if (seed1>0) std::srand(seed1);
+    //std::cerr<<eps<<" "<<ntry1<<"  "<<seed1<<"\n";
+    
     while (true)
     {
         // combines shuffles and cyclic permutations (which are way cheaper!)
         if (i%n==0) std::random_shuffle(idx.begin(),idx.end());
         else { for (int i=0; i<n; ++i) idx[i]=(idx[i]+1)%n; }
         
-        //for (int j=0; j<n; ++j) std::cerr<<idx[j]<<" ";        std::cerr<<"\n";
+        //if (i%10000==0) { for (int j=0; j<n; ++j) std::cerr<<idx[j]<<" ";        std::cerr<<"\n"; }
         
         // computes the product of elements for the selected permutation
         pi = SM(0, idx[0]);;
@@ -70,15 +111,58 @@ static npy_double _mcperm(PyArrayObject *matrix,PyFloatObject *eps)
         prm += pi;
         prm2 += pi*pi;
         ++i;
-        if (i==pstride)  // check if we are converged
+        if (ntry1>0 && i >=ntry1) { ti=i; break; }
+        if (ntry1==0 && i==pstride)  // check if we are converged
         {
             ++istride; i=0; ti=double(istride)*double(pstride);
             double err=sqrt((prm2-prm*prm/ti)/ti/(ti-1) ) / (prm/ti);
-            //std::cerr <<istride<< " "<<std::setprecision(10)<<fn*prm/ti<< " "<<err<< "\n";
+            //std::cerr <<istride<< " "<<fn*prm/ti<< " "<<err<< "\n";
             if (err< eps1) break;
         }
     }
+    //std::cerr <<i<< " "<<fn*prm/ti<< "\n";
     return prm/ti*fn;
+}
+
+// sinkhorn regularized best match 
+// NB this assumes that the input matrix is a kernel matrix, 
+static npy_double _shmatch(PyArrayObject* matrix, PyFloatObject *gamma, PyFloatObject *eps)
+{
+    int n = (int) PyArray_DIM(matrix, 0);
+    std::vector<double> u(n), ou(n), v(n);
+    Matrix<double> Kg(n,n);
+    for (int i=0; i<n; ++i) v[i]=u[i]=1.0;
+    double lambda=1.0/PyFloat_AS_DOUBLE(gamma), terr=PyFloat_AS_DOUBLE(eps)*PyFloat_AS_DOUBLE(eps), derr;
+    
+    for (int i=0; i<n; ++i) for (int j=0; j<n; ++j) Kg(i,j)=std::pow(SM(i,j),lambda);
+    
+    do 
+    {
+        // u<-1.0/Kg.v
+        for (int i=0; i<n; ++i) { ou[i]=u[i]; u[i]=0.0; }            
+        for (int i=0; i<n; ++i) for (int j=0; j<n; ++j) u[i]+=Kg(i,j)*v[j];
+        // at this point we can compute how far off unity we are
+        derr = 0.0;
+        for (int i=0; i<n; ++i) derr+=(1-ou[i]*u[i])*(1-ou[i]*u[i]);        
+        for (int i=0; i<n; ++i) u[i]=1.0/u[i];
+        
+        // v<-1.0/Kg.u
+        for (int i=0; i<n; ++i) v[i]=0.0; 
+        for (int i=0; i<n; ++i) for (int j=0; j<n; ++j) v[i]+=Kg(j,i)*u[j];
+        for (int i=0; i<n; ++i) v[i]=1.0/v[i];
+        //std::cerr<<derr<<"\n";
+                
+    } while (derr>terr);
+    
+    double rval=0, rrow; 
+    for (int i=0; i<n; ++i) 
+    {
+       rrow=0;
+       for (int j=0; j<n; ++j) rrow+=Kg(i,j)*SM(i,j)*v[j];
+       rval+=u[i]*rrow;
+    }   
+    //std::cerr<<"regmatch "<< rval/n <<"\n";
+    return rval/n;
 }
 
 // Count the number of set bits in a binary string
@@ -124,10 +208,12 @@ static PyObject *permanent_mc(PyObject *self, PyObject *args) {
   // Parse the input 
   PyArrayObject *matrix;
   PyFloatObject *eps;
-  if (!PyArg_ParseTuple(args, "O!O!", &PyArray_Type, &matrix, &PyFloat_Type, &eps)) {return NULL;}
+  PyIntObject *ntry;
+  PyIntObject *seed;
+  if (!PyArg_ParseTuple(args, "O!O!O!O!", &PyArray_Type, &matrix, &PyFloat_Type, &eps, &PyInt_Type, &ntry, &PyInt_Type, &seed)) {return NULL;}
 
   // Compute the permanent
-  npy_double p = _mcperm(matrix,eps);
+  npy_double p = _mcperm(matrix,eps,ntry,seed);
   return PyFloat_FromDouble(p);
 }
 
@@ -142,4 +228,15 @@ static PyObject *permanent_ryser(PyObject *self, PyObject *args) {
   return PyFloat_FromDouble(p);
 }
 
+// Computes regularised best-match usin Sinkhorn algorithm 
+static PyObject *regmatch(PyObject *self, PyObject *args) {
+  // Parse the input 
+  PyArrayObject *matrix;
+  PyFloatObject *eps;
+  PyFloatObject *gamma;
+  if (!PyArg_ParseTuple(args, "O!O!O!", &PyArray_Type, &matrix, &PyFloat_Type, &gamma, &PyFloat_Type, &eps)) {return NULL;}
 
+  // Compute the permanent
+  npy_double p = _shmatch(matrix,gamma,eps);
+  return PyFloat_FromDouble(p);
+}
