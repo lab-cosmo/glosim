@@ -134,7 +134,7 @@ static npy_double _shmatch(PyArrayObject* matrix, PyFloatObject *gamma, PyFloatO
     for (int i=0; i<n; ++i) v[i]=u[i]=1.0;
     double lambda=1.0/PyFloat_AS_DOUBLE(gamma), terr=PyFloat_AS_DOUBLE(eps)*PyFloat_AS_DOUBLE(eps), derr;
     
-    for (int i=0; i<n; ++i) for (int j=0; j<n; ++j) Kg(i,j)=std::pow(SM(i,j),lambda);
+    for (int i=0; i<n; ++i) for (int j=0; j<n; ++j) Kg(i,j)=std::exp(-(1-SM(i,j))*lambda);
     
     do 
     {

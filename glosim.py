@@ -16,7 +16,7 @@ from libmatch.structures import structk, structure
 import numpy as np
 import quippy
 
-def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanenteps, nocenter, noatom, nprocs, verbose=False, envij=None, usekit=False, kit="auto", prefix="",nlandmark=0, printsim=False,ref_xyz="",nsafe=0,rmfrom='ref'):
+def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanenteps, reggamma, nocenter, noatom, nprocs, verbose=False, envij=None, usekit=False, kit="auto", prefix="",nlandmark=0, printsim=False,ref_xyz="",nsafe=0,rmfrom='ref'):
     print >>sys.stderr, "    ___  __    _____  ___  ____  __  __ ";
     print >>sys.stderr, "   / __)(  )  (  _  )/ __)(_  _)(  \/  )";
     print >>sys.stderr, "  ( (_-. )(__  )(_)( \__ \ _)(_  )    ( ";
@@ -185,7 +185,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
             fii = open(prefix+".environ-"+str(iframe)+"-"+str(iframe)+".dat", "w")
         else:
             fii = None
-        sii = structk(sl[iframe], sl[iframe], alchem, periodic, mode=kmode, fout=fii, peps=permanenteps)        
+        sii = structk(sl[iframe], sl[iframe], alchem, periodic, mode=kmode, fout=fii, peps=permanenteps, gamma=reggamma)        
         nrm[iframe]=sii        
 
     # If ref landmarks are given and rectangular matrix is the only desired output             
@@ -251,7 +251,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
         sys.stderr.write("Computing kernel normalization           \n")
         nrm_ref = np.zeros(nf_ref,float)
         for iframe in range (0, nf_ref):           
-            sii = structk(sl_ref[iframe], sl_ref[iframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps)        
+            sii = structk(sl_ref[iframe], sl_ref[iframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma)        
             nrm_ref[iframe]=sii        
 
         sim = np.zeros((nf,nf_ref))
@@ -261,13 +261,13 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
          for iframe in range(nf):
            sys.stderr.write("Matrix row %d                           \r" % (iframe))
            for jframe in range(nf_ref):
-             sij = structk(sl[iframe], sl_ref[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps)
+             sij = structk(sl[iframe], sl_ref[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma)
              sim[iframe][jframe]=sij/np.sqrt(nrm[iframe]*nrm_ref[jframe])
         else:    
         # multiple processors
             def dorow(irow, nf_ref, psim): 
                 for jframe in range(0,nf_ref):
-                    sij = structk(sl[iframe], sl_ref[jframe], alchem, periodic, mode=kmode,fout=None, peps = permanenteps)          
+                    sij = structk(sl[iframe], sl_ref[jframe], alchem, periodic, mode=kmode,fout=None, peps = permanenteps, gamma=reggamma)          
                     psim[irow*nf_ref+jframe]=sij/np.sqrt(nrm[irow]*nrm_ref[jframe])  
                
             proclist = []   
@@ -329,7 +329,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
         iland=0
         landmarks.append(iframe)
         for jframe in range(nf):            
-            sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=kmode, fout=None,peps = permanenteps)
+            sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=kmode, fout=None,peps = permanentep, gamma=reggamma)
             sim_rect[iland][jframe]=sij/np.sqrt(nrm[iframe]*nrm[jframe])
             dist_list.append(np.sqrt(max(0,2-2*sij))) # use kernel metric
         #for x in sim_rect[iland][:]:
@@ -348,14 +348,14 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
             iframe=maxj
             if (nprocs<=1):
              for jframe in range(nf):                
-                sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps)
+                sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma)
                 sim_rect[iland][jframe]=sij/np.sqrt(nrm[iframe]*nrm[jframe])
                 dij = np.sqrt(max(0,2-2*sij))
                 if(dij<dist_list[jframe]): dist_list[jframe]=dij
             else:
 		      # multiple processors
               def docol(pdist,psim,iframe,jframe):                                
-                  sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps)
+                  sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma)
                   psim[jframe]=sij/np.sqrt(nrm[iframe]*nrm[jframe])
                   dij= np.sqrt(max(0,2-2*sij))
                   if(dij<dist_list[jframe]): pdist[jframe]=dist_list[jframe]-dij
@@ -445,14 +445,14 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
                         fij = open(prefix+".environ-"+str(iframe)+"-"+str(jframe)+".dat", "w")
                     else: fij = None
                     if periodic: sys.stderr.write("comparing %3d, atoms cell with  %3d atoms cell: lcm: %3d \r" % (sl[iframe].nenv, sl[jframe].nenv, lcm(sl[iframe].nenv,sl[jframe].nenv))) 
-                    sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=kmode, fout=fij, peps = permanenteps)          
+                    sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=kmode, fout=fij, peps = permanenteps, gamma=reggamma)          
                     sim[iframe][jframe]=sim[jframe][iframe]=sij/np.sqrt(nrm[iframe]*nrm[jframe])
                 sys.stderr.write("Matrix row %d                           \r" % (iframe))
         else:      
             # multiple processors
             def dorow(irow, nf, psim): 
                 for jframe in range(0,irow):
-                    sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=kmode, peps = permanenteps)          
+                    sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=kmode, peps = permanenteps, gamma=reggamma)          
                     psim[irow*nf+jframe]=sij/np.sqrt(nrm[irow]*nrm[jframe])  
                
             proclist = []   
@@ -521,6 +521,7 @@ if __name__ == '__main__':
       parser.add_argument("-cw", type=float, default='1.0', help="Center atom weight")
       parser.add_argument("--mu", type=float, default='0.0', help="Extra penalty for comparing to missing atoms")
       parser.add_argument("--usekit", action="store_true", help="Computes the least commond denominator of all structures and uses that as a reference state")      
+      parser.add_argument("--gamma", type=float, default="1.0", help="Regularization for entropy-smoothed best-match kernel")
       parser.add_argument("--kit", type=str, default="auto", help="Dictionary-style kit specification (e.g. --kit '{4:1,6:10}'")
       parser.add_argument("--kernel", type=str, default="match", help="Global kernel mode (e.g. --kernel average")      
       parser.add_argument("--permanenteps", type=float, default="0.0", help="Tolerance level for approximate permanent (e.g. --permanenteps 1e-4")     
@@ -556,4 +557,4 @@ if __name__ == '__main__':
          envij=tuple(map(int,args.ij.split(",")))
    
                
-      main(args.filename, nd=args.n, ld=args.l, coff=args.c, gs=args.g, mu=args.mu, centerweight=args.cw, periodic=args.periodic, usekit=args.usekit, kit=args.kit, kmode=args.kernel, permanenteps=args.permanenteps, noatom=noatom, nocenter=nocenter, nprocs=args.np, verbose=args.verbose, envij=envij, prefix=args.prefix, nlandmark=args.nlandmarks, printsim=args.distance,ref_xyz=args.refxyz,nsafe=args.nsafe,rmfrom=args.delfrom)
+      main(args.filename, nd=args.n, ld=args.l, coff=args.c, gs=args.g, mu=args.mu, centerweight=args.cw, periodic=args.periodic, usekit=args.usekit, kit=args.kit, kmode=args.kernel, permanenteps=args.permanenteps, reggamma=args.gamma, noatom=noatom, nocenter=nocenter, nprocs=args.np, verbose=args.verbose, envij=envij, prefix=args.prefix, nlandmark=args.nlandmarks, printsim=args.distance,ref_xyz=args.refxyz,nsafe=args.nsafe,rmfrom=args.delfrom)

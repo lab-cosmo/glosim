@@ -91,24 +91,26 @@ class structure:
       # adds kit data   
       if kit is None: kit = {}
       
-      for sp in kit:
+      for sp in kit:         
          if not sp in self.species: 
             self.species[sp]=0
             self.env[sp] = []
-         for k in range(self.species[sp], kit[sp]):
+         for k in range(self.species[sp], kit[sp]):            
             self.env[sp].append(environ(self.nmax,self.lmax,self.alchem,sp))
             self.nenv+=1
          self.species[sp] = kit[sp]          
       
-      self.zspecies = self.species.keys();
-      self.zspecies.sort(); 
+      self.zspecies = self.species.keys()
+      self.zspecies.sort() 
       
       # also compute the global (flattened) fingerprint
       self.globenv = environ(nmax, lmax, self.alchem)
+      
       for k, se in self.env.items():
          for e in se:
             self.globenv.add(e)
-
+      self.globenv.normalize()
+      
 
 def gcd(a,b):
    if (b>a): a,b = b, a
@@ -124,7 +126,7 @@ def lcm(a,b):
 #    
 #   return envk(strucA.globenv, strucB.globenv, alchem) 
 
-def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout=None, peps=0.0):
+def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout=None, peps=0.0, gamma=1.0):
    # computes the SOAP similarity KERNEL between two structures by combining atom-centered kernels
    # possible kernel modes include:
    #   average :  scalar product between averaged kernels
@@ -243,7 +245,8 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
             
         cost = cost/np.math.factorial(nenv)/nenv        
    elif mode == "regmatch":
-       cost=regmatch(kk, 3e-1,1e-5)
+       cost=regmatch(kk, gamma, 1e-8)  # hard-coded residual error for regularized gamma
+       print cost, kk.sum()/(nenv*nenv), envk(strucA.globenv, strucB.globenv, alchem)
    else: raise ValueError("Unknown global fingerprint mode ", mode)
    
          

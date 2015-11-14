@@ -71,14 +71,21 @@ class environ:
       self.nspecies = len(self.zspecies)
       if self.z>0 and self.z!= nenv.z: self.z=-1  # self species is not defined for a sum of different centers of environments
       if self.nmax != nenv.nmax or self.lmax != nenv.lmax: raise ValueError("Cannot combine environments with different expansion channels")
-      for k,w in nenv.soaps.items():
-         if k in self.soaps:
-            self.soaps[k] = self.soaps[k]*self.natoms + nenv.soaps[k]*nenv.natoms
-         else:
-            self.soaps[k] = w.copy() * nenv.natoms
-        # print k, self.soaps[k] 
-      self.natoms += nenv.natoms      
-      self.normalize()
+      if len(self.soaps)==0 and self.z>0:  # we need an explicit description 
+        self.soaps[(self.z,self.z)] = self.dummy1
+      if len(nenv.soaps)==0 and nenv.z>0:
+        if (nenv.z,nenv.z) in self.soaps:
+            self.soaps[(nenv.z,nenv.z)] += self.dummy1
+        else:
+            self.soaps[(nenv.z,nenv.z)] = self.dummy1.copy()
+      else:
+        for k,w in nenv.soaps.items():     
+            if k in self.soaps:
+                self.soaps[k] = self.soaps[k] + nenv.soaps[k] 
+            else:
+                self.soaps[k] = w.copy()
+        
+      self.natoms += nenv.natoms            
 
    def normalize(self):       
       nrm = np.sqrt( envk(self, self, self.alchem) )
