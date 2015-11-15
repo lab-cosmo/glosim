@@ -122,7 +122,7 @@ def lcm_best_cost2(gmtx, thresh = 1e-10):
     tainted[1,0]=1 # make sure we get in once!
     
     while merged and np.triu(tainted,1).sum()>0:     
-        print "estimate cost ", sum(bcl), "n. exchanges", nxc, "/", ntry     
+        #print "estimate cost ", sum(bcl), "n. exchanges", nxc, "/", ntry     
         merged = False
         
         for i in xrange(nb):                  
@@ -179,7 +179,7 @@ def lcm_best_cost2(gmtx, thresh = 1e-10):
                 tainted[i,j] = 0
             #if merged: break  
     
-    print "final cost", sum(bcl), len(bcl), "total exchanges: ", nxc, "/", ntry
+    #print "final cost", sum(bcl), len(bcl), "total exchanges: ", nxc, "/", ntry
     return sum(bcl)
     
 if __name__ == "__main__":

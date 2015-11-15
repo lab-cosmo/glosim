@@ -230,23 +230,14 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
         
         cost = 1-hun/nenv
    elif mode == "permanent":
-            
-    #~ if not periodic and len(alchem.rules) == 0 : # special case, compute partial permanents over the same-specie blocks
-        #~ cost=1.0
-        #~ for a in aidx:
-            #~ if a in bidx and len(aidx[a])>0:
-                #~ block=kk[np.ix_(aidx[a],bidx[a])]
-                #~ if peps>0: cost=cost*mcperm(block, peps)
-                #~ else: cost=cost*xperm(block)
-    #~ else: # ouch! we must compute the whole thing, this is gonna cost
         # there is no place to hide: cross-species environments are not necessarily zero 
         if peps>0: cost = mcperm(kk, peps)
         else: cost = xperm(kk)
             
         cost = cost/np.math.factorial(nenv)/nenv        
    elif mode == "regmatch":
-       cost=regmatch(kk, gamma, 1e-8)  # hard-coded residual error for regularized gamma
-       print cost, kk.sum()/(nenv*nenv), envk(strucA.globenv, strucB.globenv, alchem)
+       cost=regmatch(kk, gamma, 1e-6)  # hard-coded residual error for regularized gamma
+       # print cost, kk.sum()/(nenv*nenv), envk(strucA.globenv, strucB.globenv, alchem)
    else: raise ValueError("Unknown global fingerprint mode ", mode)
    
          
