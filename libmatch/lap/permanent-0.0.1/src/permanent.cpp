@@ -125,44 +125,48 @@ static npy_double _mcperm(PyArrayObject *matrix, PyFloatObject *eps, PyIntObject
 }
 
 // sinkhorn regularized best match 
-// NB this assumes that the input matrix is a kernel matrix, 
+// NB this assumes that the input matrix is a kernel matrix with entries \in [0,1], 
+// NB this also works on rectangular matrices
 static npy_double _shmatch(PyArrayObject* matrix, PyFloatObject *gamma, PyFloatObject *eps)
 {
-    int n = (int) PyArray_DIM(matrix, 0);
-    std::vector<double> u(n), ou(n), v(n);
-    Matrix<double> Kg(n,n);
-    for (int i=0; i<n; ++i) v[i]=u[i]=1.0;
+    int nx = (int) PyArray_DIM(matrix, 0);
+    int ny = (int) PyArray_DIM(matrix, 1);
+    std::vector<double> u(nx), ou(nx), v(ny);
+    double ax = 1.0/nx, ay=1.0/ny;
+    Matrix<double> Kg(nx,ny);
+    for (int i=0; i<nx; ++i) u[i]=1.0;
+    for (int i=0; i<ny; ++i) v[i]=1.0;
     double lambda=1.0/PyFloat_AS_DOUBLE(gamma), terr=PyFloat_AS_DOUBLE(eps)*PyFloat_AS_DOUBLE(eps), derr;
     
-    for (int i=0; i<n; ++i) for (int j=0; j<n; ++j) Kg(i,j)=std::exp(-(1-SM(i,j))*lambda);
+    for (int i=0; i<nx; ++i) for (int j=0; j<ny; ++j) Kg(i,j)=std::exp(-(1-SM(i,j))*lambda);
     
     do 
     {
         // u<-1.0/Kg.v
-        for (int i=0; i<n; ++i) { ou[i]=u[i]; u[i]=0.0; }            
-        for (int i=0; i<n; ++i) for (int j=0; j<n; ++j) u[i]+=Kg(i,j)*v[j];
+        for (int i=0; i<nx; ++i) { ou[i]=u[i]; u[i]=0.0; }            
+        for (int i=0; i<nx; ++i) for (int j=0; j<ny; ++j) u[i]+=Kg(i,j)*v[j];
         // at this point we can compute how far off unity we are
         derr = 0.0;
-        for (int i=0; i<n; ++i) derr+=(1-ou[i]*u[i])*(1-ou[i]*u[i]);        
-        for (int i=0; i<n; ++i) u[i]=1.0/u[i];
+        for (int i=0; i<nx; ++i) derr+=(ax-ou[i]*u[i])*(ax-ou[i]*u[i]);        
+        for (int i=0; i<nx; ++i) u[i]=ax/u[i];
         
         // v<-1.0/Kg.u
-        for (int i=0; i<n; ++i) v[i]=0.0; 
-        for (int i=0; i<n; ++i) for (int j=0; j<n; ++j) v[i]+=Kg(j,i)*u[j];
-        for (int i=0; i<n; ++i) v[i]=1.0/v[i];
+        for (int i=0; i<ny; ++i) v[i]=0.0; 
+        for (int i=0; i<ny; ++i) for (int j=0; j<nx; ++j) v[i]+=Kg(j,i)*u[j];
+        for (int i=0; i<ny; ++i) v[i]=ay/v[i];
         //std::cerr<<derr<<"\n";
                 
     } while (derr>terr);
     
     double rval=0, rrow; 
-    for (int i=0; i<n; ++i) 
+    for (int i=0; i<nx; ++i) 
     {
        rrow=0;
-       for (int j=0; j<n; ++j) rrow+=Kg(i,j)*SM(i,j)*v[j];
+       for (int j=0; j<ny; ++j) rrow+=Kg(i,j)*SM(i,j)*v[j];
        rval+=u[i]*rrow;
     }   
     //std::cerr<<"regmatch "<< rval/n <<"\n";
-    return rval/n;
+    return rval;
 }
 
 // Count the number of set bits in a binary string
