@@ -17,7 +17,7 @@ from libmatch.structures import structk, structure
 import numpy as np
 from copy import copy 
 
-def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanenteps, reggamma, nocenter, noatom, nprocs, verbose=False, envij=None, usekit=False, kit="auto", alchemyrules="none",prefix="",nlandmark=0, printsim=False,ref_xyz="",nsafe=0,rmfrom='ref'):
+def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanenteps, reggamma, nocenter, noatom, nprocs, verbose=False, envij=None, usekit=False, kit="auto", alchemyrules="none",prefix="",nlandmark=0, printsim=False,ref_xyz=""):
     print >>sys.stderr, "    ___  __    _____  ___  ____  __  __ ";
     print >>sys.stderr, "   / __)(  )  (  _  )/ __)(_  _)(  \/  )";
     print >>sys.stderr, "  ( (_-. )(__  )(_)( \__ \ _)(_  )    ( ";
@@ -41,85 +41,6 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
         print >> sys.stderr, len(alref.n) , " Configurations Read"
 
 
-   # Checking which frames needs to be removed.
-    if periodic and nsafe>0  and kmode!="average":
-      print >> sys.stderr, len(al.n) , "nsafe= ",nsafe, " given: Checking for frames to remove."
-      if ref_xyz=="":
-         rmlist=[]
-         for  iframe in range (len(al.n)):
-           na=al[iframe].n
-           for jframe in range(len(al.n)):
-            if jframe not in rmlist:
-             nb=al[jframe].n
-             ncom=lcm(na,nb)
-             if ncom >nsafe and na>nb and iframe not in rmlist:rmlist.append(iframe)
-         if len(rmlist)>0:
-           print >> sys.stderr,"frames to remove", rmlist
-           qrm=quippy.AtomsWriter(prefix+"_removed.xyz")
-           for iframe in rmlist:
-             qrm.write(al[iframe])
-
-           rmlist=sorted(rmlist,reverse=True)
-           for iframe in rmlist:
-       #     print >>sys.stderr, "Deleting",iframe
-              del al[iframe]
-           qsafe=quippy.AtomsWriter(prefix+"_safe.xyz")
-           for at in al:
-             qsafe.write(at)
-           print >>sys.stderr, "New Number of Frames",len(al.n)
-      else:  
-         rmlist=[]
-         rmlist_ref=[]
-         if rmfrom=="ref" : 
-           for  iframe in range (len(al.n)):
-             na=al[iframe].n
-             if iframe not in rmlist:
-              for jframe in range(len(alref.n)):
-               if jframe not in rmlist_ref:
-                 nb=alref[jframe].n
-                 ncom=lcm(na,nb)
-                 if ncom >nsafe  and  jframe not in rmlist_ref: rmlist_ref.append(jframe)
-           if len(rmlist_ref)>0:
-             print >> sys.stderr,"frames to remove from ref", rmlist_ref
-             if ref_xyz.endswith('.xyz'): ref_xyz=ref_xyz[:-4]
-             qrm=quippy.AtomsWriter(ref_xyz+"_removed.xyz")
-             for iframe in rmlist_ref:
-                qrm.write(alref[iframe])
-             rmlist_ref=sorted(rmlist_ref,reverse=True)
-             for iframe in rmlist_ref:
-        #        print >>sys.stderr, "Deleting",iframe
-                del alref[iframe]
-             qsafe=quippy.AtomsWriter(ref_xyz+"_safe.xyz")
-             for at in alref:
-                qsafe.write(at)
- 
-             print >>sys.stderr, "New Number of Frames",len(alref.n)
-           
-  
-         else: 
-           for  iframe in range (len(alref.n)):
-             na=alref[iframe].n
-             if iframe not in rmlist_ref:
-              for jframe in range(len(al.n)):
-               if jframe not in rmlist:
-                 nb=al[jframe].n
-                 ncom=lcm(na,nb)
-                 if ncom >nsafe  and  jframe not in rmlist: rmlist.append(jframe)
-           if len(rmlist)>0:
-             print >> sys.stderr,"frames to remove from src", rmlist
-             qrm=quippy.AtomsWriter(prefix+"_removed.xyz")
-             for iframe in rmlist:
-                qrm.write(al[iframe])
-             rmlist=sorted(rmlist,reverse=True)
-             for iframe in rmlist:
-         #       print >>sys.stderr, "Deleting",iframe
-                del al[iframe]
-             qsafe=quippy.AtomsWriter(prefix+"_safe.xyz")
-             for at in al:
-               qsafe.write(at)
-             print >>sys.stderr, "New Number of Frames",len(al.n)
-
-#    return
     print >> sys.stderr, "Computing SOAPs"
     # sets alchemical matrix
     if (alchemyrules=="none"):
@@ -302,9 +223,11 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
         #===================================================================            
                     
         fkernel = open(prefix+"_rect.k", "w")  
-        fkernel.write("# OOS Kernel matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s alchemy rules: %s" % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter), alchemyrules) )
-        if (usekit): fkernel.write( " Using reference kit: %s\n" % (str(kit)) )
-        else: fkernel.write("\n")
+        fkernel.write("# OOS Kernel matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)) )
+        if (usekit):fkernel.write( " Using reference kit: %s " % (str(kit)) )
+        if (alchemyrules!="none"):fkernel.write( " Using alchemy rules: %s " % (alchemyrules) )
+        if (kmode=="regmatch"): fkernel.write( " Regularized parameter: %f " % (reggamma) )
+        fkernel.write("\n")
         for iframe in range(0,nf):
             for x in sim[iframe][0:nf_ref]:
                 fkernel.write("%16.8e " % (x))
@@ -312,9 +235,11 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
             
         if printsim:
             fsim = open(prefix+"_rect.sim", "w")  
-            fsim.write("# OOS Distance matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s alchemy rules: %s" % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter), alchemyrules) )
-            if (usekit): fsim.write( " Using reference kit: %s\n" % (str(kit)) )
-            else: fsim.write("\n")
+            fsim.write("# OOS Distance matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)) )
+            if (usekit):fsim.write( " Using reference kit: %s " % (str(kit)) )
+            if (alchemyrules!="none"):fsim.write( " Using alchemy rules: %s " % (alchemyrules) )
+            if (kmode=="regmatch"): fsim.write( " Regularized parameter: %f " % (reggamma) )
+            fsim.write("\n")
             for iframe in range(0,nf):
                 for x in sim[iframe][0:nf_ref]:
                     fsim.write("%16.8e " % (np.sqrt(max(2-2*x,0))))
@@ -408,9 +333,11 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
             landlist.write("%d\n" % (iland))
             
         fkernel = open(prefix+".landmarks.k", "w")  
-        fkernel.write("# Kernel matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s alchemy rules: %s" % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter), alchemyrules) )
-        if (usekit): fkernel.write( " [ Using reference kit: %s\n" % (str(kit)) )
-        else: fkernel.write("\n")
+        fkernel.write("# Kernel matrix for landmarks from  %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)) )
+        if (usekit):fkernel.write( " Using reference kit: %s " % (str(kit)) )
+        if (alchemyrules!="none"):fkernel.write( " Using alchemy rules: %s " % (alchemyrules) )
+        if (kmode=="regmatch"): fkernel.write( " Regularized parameter: %f " % (reggamma) )
+        fkernel.write("\n")
         for iframe in range(0,m):
             for x in sim[iframe][0:m]:
                 fkernel.write("%20.12e " % (x))
@@ -418,6 +345,11 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
         fkernel.close()
         
         fkernel = open(prefix+".oos.k", "w")  
+        fkernel.write("# Kernel matrix for OOS from %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s" % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)) )
+        if (usekit):fkernel.write( " Using reference kit: %s " % (str(kit)) )
+        if (alchemyrules!="none"):fkernel.write( " Using alchemy rules: %s " % (alchemyrules) )
+        if (kmode=="regmatch"): fkernel.write( " Regularized parameter: %f " % (reggamma) )
+        fkernel.write("\n")
         for jframe in range(0,nf):
             for x in sim_rect[:,jframe]:
                 fkernel.write("%20.12e " % (x))
@@ -426,9 +358,11 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
             
         if printsim:
             fsim = open(prefix+".landmarks.sim", "w")  
-            fsim.write("# Distance matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s alchemy rules: %s" % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter), alchemyrules) )
-            if (usekit): fsim.write( " [ Using reference kit: %s\n" % (str(kit)) )
-            else: fsim.write("\n")
+            fsim.write("# Distance matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s" % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)))
+            if (usekit):fsim.write( " Using reference kit: %s " % (str(kit)) )
+            if (alchemyrules!="none"):fsim.write( " Using alchemy rules: %s " % (alchemyrules) )
+            if (kmode=="regmatch"): fsim.write( " Regularized parameter: %f " % (reggamma) )
+            fsim.write("\n")
             for iframe in range(0,m):
                 for x in sim[iframe][0:m]:
                     fsim.write("%16.8e " % (np.sqrt(max(2-2*x,0))))
@@ -436,6 +370,11 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
             fsim.close()
             
             fsim = open(prefix+".oos.sim", "w")  
+            fsim.write("# OOS Distance matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s" % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)))
+            if (usekit):fsim.write( " Using reference kit: %s " % (str(kit)) )
+            if (alchemyrules!="none"):fsim.write( " Using alchemy rules: %s " % (alchemyrules) )
+            if (kmode=="regmatch"): fsim.write( " Regularized parameter: %f " % (reggamma) )
+            fsim.write("\n")
             for jframe in range(0,nf):
                 for x in sim_rect[:,jframe]:
                     fsim.write("%16.8e " % (np.sqrt(max(2-2*x,0))))
@@ -487,9 +426,11 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
                     sim[iframe,jframe]=sim[jframe,iframe]=psim[iframe*nf+jframe]
      
         fkernel = open(prefix+".k", "w")  
-        fkernel.write("# Kernel matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s alchemy rules: %s" % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter), alchemyrules) )
-        if (usekit): fkernel.write( " [ Using reference kit: %s\n" % (str(kit)) )
-        else: fkernel.write("\n")
+        fkernel.write("# Kernel matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)) )
+        if (usekit):fkernel.write( " Using reference kit: %s " % (str(kit)) )
+        if (alchemyrules!="none"):fkernel.write( " Using alchemy rules: %s " % (alchemyrules) )
+        if (kmode=="regmatch"): fkernel.write( " Regularized parameter: %f " % (reggamma) )
+        fkernel.write("\n")
         for iframe in range(0,nf):
             for x in sim[iframe][0:nf]:
                 fkernel.write("%16.8e " % (x))
@@ -497,13 +438,16 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
             
         if printsim:
             fsim = open(prefix+".sim", "w")  
-            fsim.write("# Distance matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s alchemy rules: %s" % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter), alchemyrules) )
-            if (usekit): fsim.write( " [ Using reference kit: %s\n" % (str(kit)) )
-            else: fsim.write("\n")
+            fsim.write("# Distance matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)) )
+            if (usekit):fsim.write( " Using reference kit: %s " % (str(kit)) )
+            if (alchemyrules!="none"):fsim.write( " Using alchemy rules: %s " % (alchemyrules) )
+            if (kmode=="regmatch"): fsim.write( " Regularized parameter: %f " % (reggamma) )
+            fsim.write("\n")
             for iframe in range(0,nf):
                 for x in sim[iframe][0:nf]:
                     fsim.write("%16.8e " % (np.sqrt(max(2-2*x,0))))
-                fsim.write("\n")   
+                fsim.write("\n")  
+    sys.stderr.write("\n ============= Glosim Ended Successfully ============== \n") 
 def gcd(a,b):
    if (b>a): a,b = b, a
 
@@ -533,16 +477,14 @@ if __name__ == '__main__':
       parser.add_argument("--gamma", type=float, default="1.0", help="Regularization for entropy-smoothed best-match kernel")
       parser.add_argument("--kit", type=str, default="auto", help="Dictionary-style kit specification (e.g. --kit '{4:1,6:10}'")
       parser.add_argument("--alchemy_rules", type=str, default="none", help='Dictionary-style rule specification in quote (e.g. --alchemy_rules "{(6,7):1,(6,8):1}"')
-      parser.add_argument("--kernel", type=str, default="match", help="Global kernel mode (e.g. --kernel average")      
+      parser.add_argument("--kernel", type=str, default="match", help="Global kernel mode (e.g. --kernel average / match / regmatch")      
       parser.add_argument("--permanenteps", type=float, default="0.0", help="Tolerance level for approximate permanent (e.g. --permanenteps 1e-4")     
       parser.add_argument("--distance", action="store_true", help="Also prints out similarity (as kernel distance)")
       parser.add_argument("--np", type=int, default='1', help="Use multiple processes to compute the kernel matrix")
       parser.add_argument("--ij", type=str, default='', help="Compute and print diagnostics for the environment similarity between frames i,j (e.g. --ij 3,4)")
-      parser.add_argument("--nlandmarks", type=int,default='0',help="Use farthest point sampling method to select n landmarks. std output is n x n matrix. The n x N rectangular matrix is stored in file sim-rect.dat and the selected landmark frames are stored in landmarks.xyz file")     
-      parser.add_argument("--prefix", type=str, default='', help="Prefix for output files (defaults to input file name)")
+      parser.add_argument("--nlandmarks", type=int,default='0',help="Use farthest point sampling method to select n landmarks. This will also generate the OOS matrix for rest of the frames")     
       parser.add_argument("--refxyz", type=str, default='', help="ref xyz file if you want to compute the rectangular matrix contaning distances from ref configurations")
-      parser.add_argument("--nsafe", type=int, default=0, help="Max allowed number of atoms for replication. for Only for Peridoc system with match kernel. Remove a frame if it is causing lcm to grow higher than nsafe ")
-      parser.add_argument("--delfrom", type=str, default='ref', help="(ref/src) Delete frames from ref or src considering nsafe value. Only for Peridoc system with match kernel. Remove a frame deom src/ref if it is causing lcm to grow higher than nsafe ")
+      parser.add_argument("--prefix", type=str, default='', help="Prefix for output files (defaults to input file name)")
       
            
       args = parser.parse_args()
@@ -566,4 +508,4 @@ if __name__ == '__main__':
       else:
          envij=tuple(map(int,args.ij.split(",")))
                   
-      main(args.filename, nd=args.n, ld=args.l, coff=args.c, gs=args.g, mu=args.mu, centerweight=args.cw, periodic=args.periodic, usekit=args.usekit, kit=args.kit,alchemyrules=args.alchemy_rules, kmode=args.kernel, permanenteps=args.permanenteps, reggamma=args.gamma, noatom=noatom, nocenter=nocenter, nprocs=args.np, verbose=args.verbose, envij=envij, prefix=args.prefix, nlandmark=args.nlandmarks, printsim=args.distance,ref_xyz=args.refxyz,nsafe=args.nsafe,rmfrom=args.delfrom)
+      main(args.filename, nd=args.n, ld=args.l, coff=args.c, gs=args.g, mu=args.mu, centerweight=args.cw, periodic=args.periodic, usekit=args.usekit, kit=args.kit,alchemyrules=args.alchemy_rules, kmode=args.kernel, permanenteps=args.permanenteps, reggamma=args.gamma, noatom=noatom, nocenter=nocenter, nprocs=args.np, verbose=args.verbose, envij=envij, prefix=args.prefix, nlandmark=args.nlandmarks, printsim=args.distance,ref_xyz=args.refxyz)
