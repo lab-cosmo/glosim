@@ -338,7 +338,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
         iland=0
         landmarks.append(iframe)
         for jframe in range(nf):            
-            sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=kmode, fout=None,peps = permanentep, gamma=reggamma)
+            sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=kmode, fout=None,peps = permanenteps, gamma=reggamma)
             sim_rect[iland][jframe]=sij/np.sqrt(nrm[iframe]*nrm[jframe])
             dist_list.append(np.sqrt(max(0,2-2*sij))) # use kernel metric
         #for x in sim_rect[iland][:]:
