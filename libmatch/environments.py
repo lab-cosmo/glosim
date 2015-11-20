@@ -11,7 +11,7 @@ import sys, time
 from copy import copy, deepcopy
 import numpy as np
 
-__all__ = [ "environ", "alchemy", "envk" ]
+__all__ = [ "environ", "alchemy","alchemy_electro", "envk" ]
 
 class alchemy:
    def getpair(self, sa, sb):
@@ -30,7 +30,21 @@ class alchemy:
    def __init__(self, rules={}, mu=0):            
       self.rules = rules.copy()
       self.mu = mu
-      
+
+class alchemy_electro:
+   def getpair(self, sa, sb,delta):
+      siab = sidx(sa, sb)
+      if siab in self.rules:
+         return self.rules[siab]
+      else:
+         Elec_neg={1:2.1,6:2.5,7:3.0,8:3.5,16:2.5,17:3.0}
+         deltaE=Elec_neg[sa] -Elec_neg[sb]
+         p=np.exp(-0.5*(deltaE/delta)**2)
+         return p
+   def __init__(self, rules={},delta=1, mu=0):            
+      self.rules = rules.copy()
+      self.mu = mu
+      self.delta= delta
 
 class environ:   
    def getpair(self, sa, sb):
