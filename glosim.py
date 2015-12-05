@@ -288,27 +288,37 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
                 if(dij<dist_list[jframe]): dist_list[jframe]=dij
             else:
 		      # multiple processors
-              def docol(pdist,psim,iframe,jframe):                                
-                  sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma)
-                  psim[jframe]=sij/np.sqrt(nrm[iframe]*nrm[jframe])
-                  dij= np.sqrt(max(0,2-2*sij))
-                  if(dij<dist_list[jframe]): pdist[jframe]=dist_list[jframe]-dij
+              def docol(iproc,pdist,psim,iframe,jframe1,jframe2):
+                  for jframe in range(jframe1,jframe2):                                
+                     sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma)
+                     psim[jframe]=sij/np.sqrt(nrm[iframe]*nrm[jframe])
+                     dij= np.sqrt(max(0,2-2*sij))
+                     if(dij<dist_list[jframe]): pdist[iproc*nf+jframe]=dij
                #   print iframe,jframe
                
               proclist = []   
-              pdist = Array('d', nf, lock=False)
+              pdist = Array('d', nf*nprocs, lock=False)
               psim = Array('d', nf, lock=False)
-      #        pdist=0.0
-              for jframe in range(nf): 
+              for iproc in range(nprocs):
+                 for jframe in range(nf):pdist[iproc*nf+jframe]=dist_list[jframe]
+              jframe_split_list=[]
+              fpp=int(nf/nprocs)
+              for i in range(nprocs):
+                jframe_split_list.append(i*fpp)
+              jframe_split_list.append(nf)
+              if(iland==1):print "jframe splitlist",jframe_split_list,'\n'
+              for iproc in range(1,nprocs+1): 
                  while(len(proclist)>=nprocs):
                     #print "proclist",proclist
                     for ip in proclist:
                         if not ip.is_alive(): proclist.remove(ip)            
                         time.sleep(0.01)
-                 sp = Process(target=docol, name="docol proc", kwargs={"pdist":pdist,"psim":psim,"iframe":iframe,"jframe":jframe})  
+                 jframe1=jframe_split_list[iproc-1]
+                 jframe2=jframe_split_list[iproc]
+                 sp = Process(target=docol, name="docol proc", kwargs={"iproc":iproc-1,"pdist":pdist,"psim":psim,"iframe":iframe,"jframe1":jframe1,"jframe2":jframe2})  
                  proclist.append(sp)
                  sp.start()
-                 sys.stderr.write("Landmark %d, Matrix row %d, %d active processes     \r" % (iland,jframe, len(proclist)))
+                 sys.stderr.write("Landmark %d, Matrix row %d, %d active processes     \r" % (iland,jframe2, len(proclist)))
              
                  # waits for all threads to finish
               for ip in proclist:
@@ -316,8 +326,12 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
          
                 # copies from the shared memory array to Sim.
               for jframe in range(nf):
-				   dist_list[jframe]=dist_list[jframe]-pdist[jframe]
-				   sim_rect[iland][jframe]=psim[jframe]    
+                   dist_list[jframe]=pdist[jframe]
+                   for iproc in range(1,nprocs):
+                     if(dist_list[jframe]>pdist[iproc*nf+jframe]):
+                       # print iproc,pdist[iproc*nf+jframe]
+                        dist_list[jframe]=pdist[iproc*nf+jframe]
+                   sim_rect[iland][jframe]=psim[jframe]    
               #========================================================================        
               
               
