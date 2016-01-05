@@ -12,12 +12,12 @@ import sys, time,ast
 from multiprocessing import Process, Value, Array
 import argparse
 from random import randint
-from libmatch.environments import alchemy,alchemy_electro, environ
+from libmatch.environments import alchemy, environ
 from libmatch.structures import structk, structure
 import numpy as np
 from copy import copy 
 
-def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanenteps, reggamma, nocenter, noatom, nprocs, verbose=False, envij=None, usekit=False, kit="auto", alchemyrules="none",prefix="",nlandmark=0, printsim=False,ref_xyz="",edelta=0):
+def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanenteps, reggamma, nocenter, noatom, nprocs, verbose=False, envij=None, usekit=False, kit="auto", alchemyrules="none",prefix="",nlandmark=0, printsim=False,ref_xyz=""):
     print >>sys.stderr, "    ___  __    _____  ___  ____  __  __ ";
     print >>sys.stderr, "   / __)(  )  (  _  )/ __)(_  _)(  \/  )";
     print >>sys.stderr, "  ( (_-. )(__  )(_)( \__ \ _)(_  )    ( ";
@@ -44,19 +44,13 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
     print >> sys.stderr, "Computing SOAPs"
     # sets alchemical matrix
     if (alchemyrules=="none"):
-       if(edelta>0.0):
-          alchem = alchemy_electro(delta=edelta,mu=mu)
-          print >> sys.stderr,"Using Alchemy rules based on Electro Negativity\n",
-       else: alchem = alchemy(mu=mu)
+       alchem = alchemy(mu=mu)
     else:
        r=alchemyrules.replace('"', '').strip()
        r=alchemyrules.replace("'", '').strip()
        r=ast.literal_eval(r)
        print >> sys.stderr, "Using Alchemy rules: ", r,"\n"
-       if(edelta>0.0):
-         alchem = alchemy_electro(delta=edelta,mu=mu,rules=r)
-         print >> sys.stderr,"Using Alchemy rules based on Electro Negativity\n",
-       else:alchem = alchemy(mu=mu,rules=r)
+       alchem = alchemy(mu=mu,rules=r)
       
     sl = []
     iframe = 0      
@@ -294,27 +288,37 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
                 if(dij<dist_list[jframe]): dist_list[jframe]=dij
             else:
 		      # multiple processors
-              def docol(pdist,psim,iframe,jframe):                                
-                  sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma)
-                  psim[jframe]=sij/np.sqrt(nrm[iframe]*nrm[jframe])
-                  dij= np.sqrt(max(0,2-2*sij))
-                  if(dij<dist_list[jframe]): pdist[jframe]=dist_list[jframe]-dij
+              def docol(iproc,pdist,psim,iframe,jframe1,jframe2):
+                  for jframe in range(jframe1,jframe2):                                
+                     sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma)
+                     psim[jframe]=sij/np.sqrt(nrm[iframe]*nrm[jframe])
+                     dij= np.sqrt(max(0,2-2*sij))
+                     if(dij<dist_list[jframe]): pdist[iproc*nf+jframe]=dij
                #   print iframe,jframe
                
               proclist = []   
-              pdist = Array('d', nf, lock=False)
+              pdist = Array('d', nf*nprocs, lock=False)
               psim = Array('d', nf, lock=False)
-      #        pdist=0.0
-              for jframe in range(nf): 
+              for iproc in range(nprocs):
+                 for jframe in range(nf):pdist[iproc*nf+jframe]=dist_list[jframe]
+              jframe_split_list=[]
+              fpp=int(nf/nprocs)
+              for i in range(nprocs):
+                jframe_split_list.append(i*fpp)
+              jframe_split_list.append(nf)
+              if(iland==1):print "jframe splitlist",jframe_split_list,'\n'
+              for iproc in range(1,nprocs+1): 
                  while(len(proclist)>=nprocs):
                     #print "proclist",proclist
                     for ip in proclist:
                         if not ip.is_alive(): proclist.remove(ip)            
                         time.sleep(0.01)
-                 sp = Process(target=docol, name="docol proc", kwargs={"pdist":pdist,"psim":psim,"iframe":iframe,"jframe":jframe})  
+                 jframe1=jframe_split_list[iproc-1]
+                 jframe2=jframe_split_list[iproc]
+                 sp = Process(target=docol, name="docol proc", kwargs={"iproc":iproc-1,"pdist":pdist,"psim":psim,"iframe":iframe,"jframe1":jframe1,"jframe2":jframe2})  
                  proclist.append(sp)
                  sp.start()
-                 sys.stderr.write("Landmark %d, Matrix row %d, %d active processes     \r" % (iland,jframe, len(proclist)))
+                 sys.stderr.write("Landmark %d, Matrix row %d, %d active processes     \r" % (iland,jframe2, len(proclist)))
              
                  # waits for all threads to finish
               for ip in proclist:
@@ -322,8 +326,12 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
          
                 # copies from the shared memory array to Sim.
               for jframe in range(nf):
-				   dist_list[jframe]=dist_list[jframe]-pdist[jframe]
-				   sim_rect[iland][jframe]=psim[jframe]    
+                   dist_list[jframe]=pdist[jframe]
+                   for iproc in range(1,nprocs):
+                     if(dist_list[jframe]>pdist[iproc*nf+jframe]):
+                       # print iproc,pdist[iproc*nf+jframe]
+                        dist_list[jframe]=pdist[iproc*nf+jframe]
+                   sim_rect[iland][jframe]=psim[jframe]    
               #========================================================================        
               
               
@@ -483,7 +491,6 @@ if __name__ == '__main__':
       parser.add_argument("--gamma", type=float, default="1.0", help="Regularization for entropy-smoothed best-match kernel")
       parser.add_argument("--kit", type=str, default="auto", help="Dictionary-style kit specification (e.g. --kit '{4:1,6:10}'")
       parser.add_argument("--alchemy_rules", type=str, default="none", help='Dictionary-style rule specification in quote (e.g. --alchemy_rules "{(6,7):1,(6,8):1}"')
-      parser.add_argument("--alchemy_electro_delta", type=float, default=0.0, help="parameter for alchemy rules based on Electro Negativity")
       parser.add_argument("--kernel", type=str, default="match", help="Global kernel mode (e.g. --kernel average / match / regmatch")      
       parser.add_argument("--permanenteps", type=float, default="0.0", help="Tolerance level for approximate permanent (e.g. --permanenteps 1e-4")     
       parser.add_argument("--distance", action="store_true", help="Also prints out similarity (as kernel distance)")
@@ -515,4 +522,4 @@ if __name__ == '__main__':
       else:
          envij=tuple(map(int,args.ij.split(",")))
                   
-      main(args.filename, nd=args.n, ld=args.l, coff=args.c, gs=args.g, mu=args.mu, centerweight=args.cw, periodic=args.periodic, usekit=args.usekit, kit=args.kit,alchemyrules=args.alchemy_rules, kmode=args.kernel, permanenteps=args.permanenteps, reggamma=args.gamma, noatom=noatom, nocenter=nocenter, nprocs=args.np, verbose=args.verbose, envij=envij, prefix=args.prefix, nlandmark=args.nlandmarks, printsim=args.distance,ref_xyz=args.refxyz,edelta=args.alchemy_electro_delta)
+      main(args.filename, nd=args.n, ld=args.l, coff=args.c, gs=args.g, mu=args.mu, centerweight=args.cw, periodic=args.periodic, usekit=args.usekit, kit=args.kit,alchemyrules=args.alchemy_rules, kmode=args.kernel, permanenteps=args.permanenteps, reggamma=args.gamma, noatom=noatom, nocenter=nocenter, nprocs=args.np, verbose=args.verbose, envij=envij, prefix=args.prefix, nlandmark=args.nlandmarks, printsim=args.distance,ref_xyz=args.refxyz)
