@@ -3,7 +3,8 @@
 import numpy as np
 import sys
 
-def main(fname):
+def main(fname, csi="1.0"):
+   csi = float(csi)
    ffile=open(fname, "r")
    fline = ffile.readline()
    while fline[0]=='#': fline=ffile.readline()
@@ -18,6 +19,7 @@ def main(fname):
       ik+=1
    if fmat[0,0]<1e-4: # automatic heuristic to detect if this is a distance or a kernel 
       fmat = 0.5*(2-fmat*fmat)
+   fmat = fmat **csi 
    v = np.linalg.eigvalsh(fmat)
    print "finished reading"
    for i in range(len(v)):

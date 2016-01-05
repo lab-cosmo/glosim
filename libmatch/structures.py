@@ -154,7 +154,7 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
       nenvB = strucB.nenv            
    else:   
       # top up missing atoms with isolated environments
-      # first checks whic atoms are present
+      # first checks which atoms are present
       zspecies = sorted(list(set(strucB.zspecies+strucA.zspecies)))
       nspecies = []
       for z in zspecies:
