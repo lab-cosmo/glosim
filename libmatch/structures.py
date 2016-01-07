@@ -209,11 +209,11 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
          for e in r:
             fout.write("%20.14e " % (e) )
          fout.write("\n")
-      fout.write("# environment kernel eigenvalues: \n")      
-      ev = np.linalg.eigvals(kk)
-      for e in ev:
-          fout.write("(%8.4e,%8.4e) " % (e.real,e.imag) )
-      fout.write("\n");
+      #fout.write("# environment kernel eigenvalues: \n")      
+      #ev = np.linalg.eigvals(kk)
+      #for e in ev:
+      #    fout.write("(%8.4e,%8.4e) " % (e.real,e.imag) )
+      #fout.write("\n");
          
        
 

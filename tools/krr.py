@@ -7,10 +7,11 @@
 import numpy as np
 import sys
 
-def main(kernel, prop,  testfrac="0.25", csi="2", sigma="1e-3"):
+def main(kernel, prop,  testfrac="0.25", csi="2", sigma="1e-3", ntests=10):
     testfrac=float(testfrac) 
     csi = float(csi)
     sigma = float(sigma)
+    ntests = int(ntests)
      
     # reads kernel
     fkernel=open(kernel, "r")
@@ -48,32 +49,49 @@ def main(kernel, prop,  testfrac="0.25", csi="2", sigma="1e-3"):
         exit()
     
     # chooses test set randomly
-    ltest=[]
-    ltrain=[]
+    testmae=0
+    trainmae=0
+    testrms=0
+    trainrms=0
+    ntrain=0
+    ntest=0
+    
+    vp = np.var(p)    
+#    kij *= vp        
+    for itest in xrange(ntests):
+        ltest=[]
+        ltrain=[]
+        for i in xrange(nel):
+            if np.random.uniform()<testfrac:  ltest.append(i)
+            else: ltrain.append(i)
+        ltest = np.asarray(ltest, int)
+        ltrain = np.asarray(ltrain, int)
+    
+        tp = p[ltrain]
+        tk = kij[ltrain][:,ltrain].copy()
+        for i in xrange(len(ltrain)):
+            tk[i,i]+=sigma  # diagonal regularization
+        tc = np.linalg.solve(tk, tp)
+        krp = np.dot(kij[:,ltrain],tc)   
+
+        mae=abs(krp[ltest]-p[ltest]).sum()/len(ltest)
+        rms=np.sqrt(((krp[ltest]-p[ltest])**2).sum()/len(ltest))
+        print "# run: %d TEST MAE: %f RMS: %f" % (itest, mae, rms)
+
+        testmae += abs(krp[ltest]-p[ltest]).sum()/len(ltest)
+        trainmae += abs(krp[ltrain]-p[ltrain]).sum()/len(ltrain)
+        testrms += np.sqrt(((krp[ltest]-p[ltest])**2).sum()/len(ltest))
+        trainrms += np.sqrt(((krp[ltrain]-p[ltrain])**2).sum()/len(ltrain))
+        ntrain+=len(ltrain)
+        ntest+=len(ltest)
+
+    print "# KRR results (%d tests, %f training p., %f test p.): csi=%f  sigma=%f" % (ntests, ntrain/ntests, ntest/ntests, csi, sigma) 
+    print "# Train points MAE=%f  RMSE=%f" % (trainmae/ntests, trainrms/ntests)
+    print "# Test points  MAE=%f  RMSE=%f" % (testmae/ntests, testrms/ntests)
+    print "# Full KRR predictions: index target krr"
     for i in xrange(nel):
-        if np.random.uniform()<testfrac:  ltest.append(i)
-        else: ltrain.append(i)
-    ltest = np.asarray(ltest)
-    ltrain = np.asarray(ltrain)
-    
-    tp = p[ltrain]
-    vp = np.var(tp)
-    
-    kij *= vp
-    tk = kij[ltrain][:,ltrain].copy()
-    for i in xrange(len(ltrain)):
-        tk[i,i]+=vp*sigma  # diagonal regularization
-    tc = np.linalg.solve(tk, tp)
-   
-    print "# KRR results: csi=%f  sigma=%f" % (csi, sigma)  
-    krp = np.dot(kij[:,ltrain],tc)
-    print "# Train points (%d). RMSE=%f  MAE=%f" % (len(ltrain),np.sqrt(((krp[ltrain]-p[ltrain])**2).sum()/len(ltrain)),abs(krp[ltrain]-p[ltrain]).sum()/len(ltrain))
-    for t in ltrain:
-        print p[t], krp[t]
-    print "# Test points  (%d). RMSE=%f  MAE=%f" % (len(ltest),np.sqrt(((krp[ltest]-p[ltest])**2).sum()/len(ltest)),abs(krp[ltest]-p[ltest]).sum()/len(ltest))
-    for t in ltest:
-        print p[t], krp[t]
-        
+        print i, p[i], krp[i]
+
     
     
     
