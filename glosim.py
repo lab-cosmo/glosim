@@ -17,7 +17,7 @@ from libmatch.structures import structk, structure
 import numpy as np
 from copy import copy 
 
-def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanenteps, reggamma, nocenter, noatom, nprocs, verbose=False, envij=None, usekit=False, kit="auto", alchemyrules="none",prefix="",nlandmark=0, printsim=False,ref_xyz=""):
+def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanenteps, reggamma, nocenter, noatom, nprocs, verbose=False, envij=None, usekit=False, kit="auto", alchemyrules="none",prefix="",nlandmark=0, printsim=False,ref_xyz="",partialsim=False):
     print >>sys.stderr, "    ___  __    _____  ___  ____  __  __ ";
     print >>sys.stderr, "   / __)(  )  (  _  )/ __)(_  _)(  \/  )";
     print >>sys.stderr, "  ( (_-. )(__  )(_)( \__ \ _)(_  )    ( ";
@@ -252,7 +252,16 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
         print >> sys.stderr, "##### FARTHEST POINT SAMPLING ######"
         print >> sys.stderr, "Selecting",nlandmark,"Frames from",nf, "Frames"
         print >> sys.stderr, "####################################"
-         
+        landlist=open(prefix+".landmarks","w")
+        landxyz=quippy.AtomsWriter(prefix+".landmarks.xyz")   
+        if (partialsim): 
+          pfkernel=open(prefix+".k.partial","w")
+          pfkernel.write("# Kernel matrix for OOS from %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s" % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)) )
+          if (usekit):pfkernel.write( " Using reference kit: %s " % (str(kit)) )
+          if (alchemyrules!="none"):pfkernel.write( " Using alchemy rules: %s " % (alchemyrules) )
+          if (kmode=="regmatch"): pfkernel.write( " Regularized parameter: %f " % (reggamma) )
+          pfkernel.write("\n")
+ 
         m = nlandmark
         sim = np.zeros((m,m))
         sim_rect=np.zeros((m,nf))
@@ -269,7 +278,13 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
         #for x in sim_rect[iland][:]:
         #    fsim.write("%8.4e " %(x))
         #fsim.write("\n")
-        maxd=0.0
+        landlist.write("# Landmark list\n")
+        landlist.write("%d\n" % (landmarks[0]))
+        landxyz.write(al[landmarks[0]])
+        if(partialsim):
+            for x in sim_rect[iland,:]:
+                pfkernel.write("%20.12e " % (x))
+            pfkernel.write("\n")
         for iland in range(1,m):
             maxd=0.0
             for jframe in range(nf):
@@ -277,6 +292,8 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
                     maxd=dist_list[jframe]
                     maxj=jframe
             landmarks.append(maxj)
+            landxyz.write(al[maxj])
+            landlist.write("%d\n" % (maxj))
             
             sys.stderr.write("Landmark %5d    maxd %f                          \r" % (iland, maxd))
             iframe=maxj
@@ -306,7 +323,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
               for i in range(nprocs):
                 jframe_split_list.append(i*fpp)
               jframe_split_list.append(nf)
-              if(iland==1):print "jframe splitlist",jframe_split_list,'\n'
+           #   if(iland==1):print "jframe splitlist",jframe_split_list,'\n'
               for iproc in range(1,nprocs+1): 
                  while(len(proclist)>=nprocs):
                     #print "proclist",proclist
@@ -332,20 +349,17 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
                        # print iproc,pdist[iproc*nf+jframe]
                         dist_list[jframe]=pdist[iproc*nf+jframe]
                    sim_rect[iland][jframe]=psim[jframe]    
+            if(partialsim):
+                for x in sim_rect[iland,:]:
+                   pfkernel.write("%20.12e " % (x))
+                pfkernel.write("\n")
               #========================================================================        
               
-              
+        if(partialsim):pfkernel.close()
         for iland in range(0,m):
             for jland in range(0,m):
                 sim[iland,jland] = sim_rect[iland, landmarks[jland] ]
         
-        landxyz=quippy.AtomsWriter(prefix+".landmarks.xyz")         
-        landlist=open(prefix+".landmarks","w")
-        landlist.write("# Landmark list\n")
-        for iland in landmarks: 
-            landxyz.write(al[iland])
-            landlist.write("%d\n" % (iland))
-            
         fkernel = open(prefix+".landmarks.k", "w")  
         fkernel.write("# Kernel matrix for landmarks from  %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)) )
         if (usekit):fkernel.write( " Using reference kit: %s " % (str(kit)) )
@@ -499,6 +513,7 @@ if __name__ == '__main__':
       parser.add_argument("--nlandmarks", type=int,default='0',help="Use farthest point sampling method to select n landmarks. This will also generate the OOS matrix for rest of the frames")     
       parser.add_argument("--refxyz", type=str, default='', help="ref xyz file if you want to compute the rectangular matrix contaning distances from ref configurations")
       parser.add_argument("--prefix", type=str, default='', help="Prefix for output files (defaults to input file name)")
+      parser.add_argument("--livek",  action="store_true", help="Writes out diagnostics for the optimal match assignment of each pair of environments")   
       
            
       args = parser.parse_args()
@@ -522,4 +537,4 @@ if __name__ == '__main__':
       else:
          envij=tuple(map(int,args.ij.split(",")))
                   
-      main(args.filename, nd=args.n, ld=args.l, coff=args.c, gs=args.g, mu=args.mu, centerweight=args.cw, periodic=args.periodic, usekit=args.usekit, kit=args.kit,alchemyrules=args.alchemy_rules, kmode=args.kernel, permanenteps=args.permanenteps, reggamma=args.gamma, noatom=noatom, nocenter=nocenter, nprocs=args.np, verbose=args.verbose, envij=envij, prefix=args.prefix, nlandmark=args.nlandmarks, printsim=args.distance,ref_xyz=args.refxyz)
+      main(args.filename, nd=args.n, ld=args.l, coff=args.c, gs=args.g, mu=args.mu, centerweight=args.cw, periodic=args.periodic, usekit=args.usekit, kit=args.kit,alchemyrules=args.alchemy_rules, kmode=args.kernel, permanenteps=args.permanenteps, reggamma=args.gamma, noatom=noatom, nocenter=nocenter, nprocs=args.np, verbose=args.verbose, envij=envij, prefix=args.prefix, nlandmark=args.nlandmarks, printsim=args.distance,ref_xyz=args.refxyz,partialsim=args.livek)
