@@ -29,7 +29,7 @@ class structurelist(list):
 #        self.storage=[]
         self.count=0
     def append(self, element):
-        if self.lowmem:
+#        if self.lowmem:
             #piclke
             # self.storage.append("filename where the new element is stored")
             ind=self.count
@@ -38,21 +38,21 @@ class structurelist(list):
             pickle.dump(element, file)
             file.close()
             self.count+=1
-        else:
-            super(structurelist,self).append(element)
+#        else:
+#            super(structurelist,self).append(element)
 
     def __getitem__(self, index):
 
-        if self.lowmem:
+#        if self.lowmem:
             f=self.basedir+'/sl_'+str(index)+'.dat'
             file=open(f,"r")
             l=pickle.load(file)
             return  l
             file.close()
             #pass
-        else:
-            val=list.__getitem__(self, index)
-            return  val
+#        else:
+#            val=list.__getitem__(self, index)
+#            return  val
 
 def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanenteps, reggamma, nocenter, noatom, nprocs, verbose=False, envij=None, usekit=False, kit="auto", alchemyrules="none",prefix="",nlandmark=0, printsim=False,ref_xyz="",partialsim=False,lowmem=False):
     print >>sys.stderr, "    ___  __    _____  ___  ____  __  __ ";
@@ -95,7 +95,10 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
        print >> sys.stderr, "Using Alchemy rules: ", r,"\n"
        alchem = alchemy(mu=mu,rules=r)
       
-    sl = structurelist(lowmem=lowmem)
+    if lowmem:
+       sl = structurelist(lowmem=lowmem)
+    else:
+       sl=[]
     iframe = 0      
     if verbose:
         qlog=quippy.AtomsWriter("log.xyz")
@@ -122,7 +125,10 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
         iframe=0
         print >> sys.stderr, "Using kit: ", kit
     else: kit=None
-     
+    nf = len(al.n)  
+    nf_ref=nf 
+    iframe=0 
+    nrm = np.zeros(nf,float)
     for at in al:
         if envij == None or iframe in envij:
             sys.stderr.write("Frame %d                              \r" %(iframe) )
@@ -134,6 +140,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
             sl.append(si)
             if verbose:
                 slog.write("# Frame %d \n" % (iframe))
+                fii = open(prefix+".environ-"+str(iframe)+"-"+str(iframe)+".dat", "w")
                 for sp, el in si.env.iteritems():
                     ik=0
                     for ii in el:
@@ -144,22 +151,24 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
                             for si in s:
                                 slog.write("%8.4e " %(si))                        
                             slog.write("\n")
-          
+            else:
+               fii = None
+             
+            sii = structk(si, si, alchem, periodic, mode=kmode, fout=fii, peps=permanenteps, gamma=reggamma)        
+            nrm[iframe]=sii        
         iframe +=1; 
       
-    nf = len(al.n)  
-    nf_ref=nf 
     print >> sys.stderr, "Computing kernel matrix"
     # must fix the normalization of the similarity matrix!
-    sys.stderr.write("Computing kernel normalization           \n")
-    nrm = np.zeros(nf,float)
-    for iframe in range (0, nf):           
-        if verbose:
-            fii = open(prefix+".environ-"+str(iframe)+"-"+str(iframe)+".dat", "w")
-        else:
-            fii = None
-        sii = structk(sl[iframe], sl[iframe], alchem, periodic, mode=kmode, fout=fii, peps=permanenteps, gamma=reggamma)        
-        nrm[iframe]=sii        
+#    sys.stderr.write("Computing kernel normalization           \n")
+#    nrm = np.zeros(nf,float)
+#    for iframe in range (0, nf):           
+#        if verbose:
+#            fii = open(prefix+".environ-"+str(iframe)+"-"+str(iframe)+".dat", "w")
+#        else:
+#            fii = None
+#        sii = structk(sl[iframe], sl[iframe], alchem, periodic, mode=kmode, fout=fii, peps=permanenteps, gamma=reggamma)        
+#        nrm[iframe]=sii        
 
     # If ref landmarks are given and rectangular matrix is the only desired output             
     if (ref_xyz !=""):
