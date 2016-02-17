@@ -28,6 +28,7 @@ class structurelist(list):
         self.lowmem=lowmem
 #        self.storage=[]
         self.count=0
+        
     def append(self, element):
 #        if self.lowmem:
             #piclke
@@ -170,8 +171,8 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
 #        sii = structk(sl[iframe], sl[iframe], alchem, periodic, mode=kmode, fout=fii, peps=permanenteps, gamma=reggamma)        
 #        nrm[iframe]=sii        
 
-    # If ref landmarks are given and rectangular matrix is the only desired output             
-    if (ref_xyz !=""):
+    
+    if (ref_xyz !=""): # If ref landmarks are given and rectangular matrix is the only desired output             
         print >> sys.stderr, "Computing SOAPs"
         # sets alchemical matrix
         alchem = alchemy(mu=mu)
@@ -303,7 +304,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
 #=============================================================================
             
    
-    elif (nlandmark>0):
+    elif (nlandmark>0): # we have just one input but we compute landmarks
         print >> sys.stderr, "##### FARTHEST POINT SAMPLING ######"
         print >> sys.stderr, "Selecting",nlandmark,"Frames from",nf, "Frames"
         print >> sys.stderr, "####################################"
@@ -464,26 +465,28 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
                 fsim.write("\n")   
             fsim.close()
             
-    else:
+    else:  # standard case (one input, compute everything
         sim=np.zeros((nf,nf))
 
         if (nprocs<=1):
             # no multiprocess
             for iframe in range (0, nf):
                 sim[iframe,iframe]=1.0
+                sli = sl[iframe]
                 for jframe in range(0,iframe):
                     if verbose:
                         fij = open(prefix+".environ-"+str(iframe)+"-"+str(jframe)+".dat", "w")
                     else: fij = None
                     # if periodic: sys.stderr.write("comparing %3d, atoms cell with  %3d atoms cell: lcm: %3d \r" % (sl[iframe].nenv, sl[jframe].nenv, lcm(sl[iframe].nenv,sl[jframe].nenv))) 
-                    sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=kmode, fout=fij, peps = permanenteps, gamma=reggamma)          
+                    sij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, fout=fij, peps = permanenteps, gamma=reggamma)          
                     sim[iframe][jframe]=sim[jframe][iframe]=sij/np.sqrt(nrm[iframe]*nrm[jframe])
                 sys.stderr.write("Matrix row %d                           \r" % (iframe))
         else:      
             # multiple processors
-            def dorow(irow, nf, psim): 
+            def dorow(irow, nf, psim):
+                sli=sl[irow] 
                 for jframe in range(0,irow):
-                    sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=kmode, peps = permanenteps, gamma=reggamma)          
+                    sij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, peps = permanenteps, gamma=reggamma)          
                     psim[irow*nf+jframe]=sij/np.sqrt(nrm[irow]*nrm[jframe])  
                
             proclist = []   
