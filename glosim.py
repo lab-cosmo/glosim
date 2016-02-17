@@ -17,7 +17,7 @@ from libmatch.structures import structk, structure
 import os
 import numpy as np
 from copy import copy 
-import cPickle as pickle
+import pickle
 class structurelist(list):
 
     def __init__(self, lowmem=False, basedir="tmpstructures"):
@@ -36,7 +36,7 @@ class structurelist(list):
             ind=self.count
             f=self.basedir+'/sl_'+str(ind)+'.dat'
             file=open(f,"w")
-            pickle.dump(element, file)
+            pickle.dump(element, file,protocol=2)
             file.close()
             self.count+=1
 #        else:
