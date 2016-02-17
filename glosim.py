@@ -14,10 +14,47 @@ import argparse
 from random import randint
 from libmatch.environments import alchemy, environ
 from libmatch.structures import structk, structure
+import os
 import numpy as np
 from copy import copy 
+import cPickle as pickle
+class structurelist(list):
 
-def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanenteps, reggamma, nocenter, noatom, nprocs, verbose=False, envij=None, usekit=False, kit="auto", alchemyrules="none",prefix="",nlandmark=0, printsim=False,ref_xyz="",partialsim=False):
+    def __init__(self, lowmem=False, basedir="tmpstructures"):
+        self.basedir=basedir
+        if lowmem:
+          if not os.path.exists(basedir):os.makedirs(basedir)
+         # create the folder if it is not there
+        self.lowmem=lowmem
+#        self.storage=[]
+        self.count=0
+    def append(self, element):
+        if self.lowmem:
+            #piclke
+            # self.storage.append("filename where the new element is stored")
+            ind=self.count
+            f=self.basedir+'/sl_'+str(ind)+'.dat'
+            file=open(f,"w")
+            pickle.dump(element, file)
+            file.close()
+            self.count+=1
+        else:
+            super(structurelist,self).append(element)
+
+    def __getitem__(self, index):
+
+        if self.lowmem:
+            f=self.basedir+'/sl_'+str(index)+'.dat'
+            file=open(f,"r")
+            l=pickle.load(file)
+            return  l
+            file.close()
+            #pass
+        else:
+            val=list.__getitem__(self, index)
+            return  val
+
+def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanenteps, reggamma, nocenter, noatom, nprocs, verbose=False, envij=None, usekit=False, kit="auto", alchemyrules="none",prefix="",nlandmark=0, printsim=False,ref_xyz="",partialsim=False,lowmem=False):
     print >>sys.stderr, "    ___  __    _____  ___  ____  __  __ ";
     print >>sys.stderr, "   / __)(  )  (  _  )/ __)(_  _)(  \/  )";
     print >>sys.stderr, "  ( (_-. )(__  )(_)( \__ \ _)(_  )    ( ";
@@ -25,7 +62,13 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
     print >>sys.stderr, "                                        ";
     print >>sys.stderr, "                                         ";
     filename = filename[0]
-    # sets a few defaults 
+    # sets a few defaults
+    if lowmem :
+       print >> sys.stderr,"!!!!!!!!!!!!!!!!!!! LOW MEMORY OPTION ACTIVATED !!!!!!!!!!!!!!!!!!!!!!!!"
+       print >> sys.stderr,"Descriptors will be written in tmpstructures dir instead of storing in memory"
+       print >> sys.stderr,"       Things are about to get SLOOOOOOOOOOOOOOOOOW !!! "
+       print >> sys.stderr," ========================================================================="
+       print >> sys.stderr,"   "
     if prefix=="": prefix=filename
     if prefix.endswith('.xyz'): prefix=prefix[:-4]
 
@@ -52,7 +95,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
        print >> sys.stderr, "Using Alchemy rules: ", r,"\n"
        alchem = alchemy(mu=mu,rules=r)
       
-    sl = []
+    sl = structurelist(lowmem=lowmem)
     iframe = 0      
     if verbose:
         qlog=quippy.AtomsWriter("log.xyz")
@@ -104,7 +147,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
           
         iframe +=1; 
       
-    nf = len(sl)  
+    nf = len(al.n)  
     nf_ref=nf 
     print >> sys.stderr, "Computing kernel matrix"
     # must fix the normalization of the similarity matrix!
@@ -123,7 +166,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
         print >> sys.stderr, "Computing SOAPs"
         # sets alchemical matrix
         alchem = alchemy(mu=mu)
-        sl_ref = []
+        sl_ref = structurelist(lowmem=lowmem)
         iframe = 0
         if verbose:
             qlogref=quippy.AtomsWriter("log_ref.xyz")
@@ -175,7 +218,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
 
             iframe +=1;
 
-        nf_ref = len(sl_ref)
+        nf_ref = len(alref.n)
         print >> sys.stderr, "Computing kernel matrix"
         # must fix the normalization of the similarity matrix!
         sys.stderr.write("Computing kernel normalization           \n")
@@ -514,6 +557,7 @@ if __name__ == '__main__':
       parser.add_argument("--refxyz", type=str, default='', help="ref xyz file if you want to compute the rectangular matrix contaning distances from ref configurations")
       parser.add_argument("--prefix", type=str, default='', help="Prefix for output files (defaults to input file name)")
       parser.add_argument("--livek",  action="store_true", help="Writes out diagnostics for the optimal match assignment of each pair of environments")   
+      parser.add_argument("--lowmem",  action="store_true", help="Writes out diagnostics for the optimal match assignment of each pair of environments")   
       
            
       args = parser.parse_args()
@@ -537,4 +581,4 @@ if __name__ == '__main__':
       else:
          envij=tuple(map(int,args.ij.split(",")))
                   
-      main(args.filename, nd=args.n, ld=args.l, coff=args.c, gs=args.g, mu=args.mu, centerweight=args.cw, periodic=args.periodic, usekit=args.usekit, kit=args.kit,alchemyrules=args.alchemy_rules, kmode=args.kernel, permanenteps=args.permanenteps, reggamma=args.gamma, noatom=noatom, nocenter=nocenter, nprocs=args.np, verbose=args.verbose, envij=envij, prefix=args.prefix, nlandmark=args.nlandmarks, printsim=args.distance,ref_xyz=args.refxyz,partialsim=args.livek)
+      main(args.filename, nd=args.n, ld=args.l, coff=args.c, gs=args.g, mu=args.mu, centerweight=args.cw, periodic=args.periodic, usekit=args.usekit, kit=args.kit,alchemyrules=args.alchemy_rules, kmode=args.kernel, permanenteps=args.permanenteps, reggamma=args.gamma, noatom=noatom, nocenter=nocenter, nprocs=args.np, verbose=args.verbose, envij=envij, prefix=args.prefix, nlandmark=args.nlandmarks, printsim=args.distance,ref_xyz=args.refxyz,partialsim=args.livek,lowmem=args.lowmem)
