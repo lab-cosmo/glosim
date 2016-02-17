@@ -175,7 +175,10 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
         print >> sys.stderr, "Computing SOAPs"
         # sets alchemical matrix
         alchem = alchemy(mu=mu)
-        sl_ref = structurelist(lowmem=lowmem)
+        if (lowmem):
+          sl_ref = structurelist(lowmem=lowmem)
+        else:
+          sl_ref=[]
         iframe = 0
         if verbose:
             qlogref=quippy.AtomsWriter("log_ref.xyz")
@@ -202,7 +205,9 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
             iframe=0
             print >> sys.stderr, "Using kit: ", kit
         else: kit=None
-
+        nf_ref = len(alref.n)
+        nrm_ref = np.zeros(nf_ref,float)
+        iframe=0
         for at in alref:
             if envij == None or iframe in envij:
                 sys.stderr.write("Frame %d                              \r" %(iframe) )
@@ -212,6 +217,8 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
                 si = structure(alchem)
                 si.parse(at, coff, nd, ld, gs, centerweight, nocenter, noatom, kit = kit)
                 sl_ref.append(si)
+                sii = structk(si, si, alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma)        
+                nrm_ref[iframe]=sii        
                 if verbose:
                     slog.write("# Frame %d \n" % (iframe))
                     for sp, el in si.env.iteritems():
@@ -227,14 +234,10 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
 
             iframe +=1;
 
-        nf_ref = len(alref.n)
         print >> sys.stderr, "Computing kernel matrix"
         # must fix the normalization of the similarity matrix!
-        sys.stderr.write("Computing kernel normalization           \n")
-        nrm_ref = np.zeros(nf_ref,float)
-        for iframe in range (0, nf_ref):           
-            sii = structk(sl_ref[iframe], sl_ref[iframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma)        
-            nrm_ref[iframe]=sii        
+     #   sys.stderr.write("Computing kernel normalization           \n")
+#        for iframe in range (0, nf_ref):           
 
         sim = np.zeros((nf,nf_ref))
         sys.stderr.write("Computing Similarity Matrix           \n")
