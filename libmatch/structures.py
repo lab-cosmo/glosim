@@ -242,3 +242,27 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
    
          
    return cost
+   
+class structurelist(list):
+    
+    def __init__(self, lowmem=False, basedir="tmpstructrures"):
+        self.basedir=basedir
+        # create the folder if it is not there
+                
+        self.storage=[]
+        
+    def append(self, element):
+        if self.lowmem:
+            #piclke
+            self.storage.append("filename where the new element is stored")
+            pass
+        else:
+            self.storage.append(element)
+            
+    def __getitem__(self, index):
+        
+        if self.lowmem:
+            # unpicle and return
+            pass
+        else:
+            return self.storage[index]
