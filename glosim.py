@@ -24,7 +24,7 @@ def flush(stream):
     os.fsync(stream)
    
 
-def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanenteps, reggamma, nocenter, noatom, nprocs, verbose=False, envij=None, usekit=False, kit="auto", alchemyrules="none",prefix="",nlandmark=0, printsim=False,ref_xyz="",partialsim=False,lowmem=False):
+def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanenteps, reggamma, nocenter, noatom, nprocs, verbose=False, envij=None, usekit=False, kit="auto", alchemyrules="none",prefix="",nlandmark=0, printsim=False,ref_xyz="",partialsim=False,lowmem=False,restartflag=False):
     print >>sys.stderr, "    ___  __    _____  ___  ____  __  __ ";
     print >>sys.stderr, "   / __)(  )  (  _  )/ __)(_  _)(  \/  )";
     print >>sys.stderr, "  ( (_-. )(__  )(_)( \__ \ _)(_  )    ( ";
@@ -33,6 +33,9 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
     print >>sys.stderr, "                                         ";
     filename = filename[0]
     # sets a few defaults
+    if (restartflag and  (not lowmem)):  
+       print >> sys.stderr,"lowmem option has to be activated for restart flag"
+       return 
     if lowmem :
        print >> sys.stderr,"!!!!!!!!!!!!!!!!!!! LOW MEMORY OPTION ACTIVATED !!!!!!!!!!!!!!!!!!!!!!!!"
        print >> sys.stderr,"Descriptors will be written in tmpstructures dir instead of storing in memory"
@@ -52,9 +55,11 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
         print >> sys.stderr, "Reading Referance xyz file: ", ref_xyz
         alref = quippy.AtomsList(ref_xyz);
         print >> sys.stderr, len(alref.n) , " Configurations Read"
+    if restartflag:
+       print >> sys.stderr, "Restart run: Reading SOAPs"
+    else:
+      print >> sys.stderr, "Computing SOAPs"
 
-
-    print >> sys.stderr, "Computing SOAPs"
     # sets alchemical matrix
     if (alchemyrules=="none"):
        alchem = alchemy(mu=mu)
@@ -101,13 +106,19 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
     nrm = np.zeros(nf,float)
     for at in al:
         if envij == None or iframe in envij:
-            sys.stderr.write("Frame %d                              \r" %(iframe) )
             if verbose: qlog.write(at)
 
             # parses one of the structures, topping up atoms with isolated species if requested
-            if restartflag and lowmem and sl.exists(iframe):
-                si = sl[iframe]
+            if restartflag: #if we are restarting from previously calculated soap files
+              if sl.exists(iframe):
+                 sys.stderr.write ("Reading SOAP for frame %d       \r " %(iframe))
+                 si = sl[iframe]
+              else: 
+                print >> sys.stderr, "\n Could not Find file for frame: ", iframe ,"\n" # At the moment the way it is implemented if it does not exist and recalculate
+                return                                                                  #  it will store the missing frame as first frame file.
+             
             else:
+                sys.stderr.write("Frame %d                              \r" %(iframe) )
                 si = structure(alchem)
                 si.parse(at, coff, nd, ld, gs, centerweight, nocenter, noatom, kit = kit)
                 sl.append(si)
@@ -546,6 +557,7 @@ if __name__ == '__main__':
       parser.add_argument("--prefix", type=str, default='', help="Prefix for output files (defaults to input file name)")
       parser.add_argument("--livek",  action="store_true", help="Writes out diagnostics for the optimal match assignment of each pair of environments")   
       parser.add_argument("--lowmem",  action="store_true", help="Writes out diagnostics for the optimal match assignment of each pair of environments")   
+      parser.add_argument("--restart",  action="store_true", help="Writes out diagnostics for the optimal match assignment of each pair of environments")   
       
            
       args = parser.parse_args()
@@ -569,4 +581,4 @@ if __name__ == '__main__':
       else:
          envij=tuple(map(int,args.ij.split(",")))
                   
-      main(args.filename, nd=args.n, ld=args.l, coff=args.c, gs=args.g, mu=args.mu, centerweight=args.cw, periodic=args.periodic, usekit=args.usekit, kit=args.kit,alchemyrules=args.alchemy_rules, kmode=args.kernel, permanenteps=args.permanenteps, reggamma=args.gamma, noatom=noatom, nocenter=nocenter, nprocs=args.np, verbose=args.verbose, envij=envij, prefix=args.prefix, nlandmark=args.nlandmarks, printsim=args.distance,ref_xyz=args.refxyz,partialsim=args.livek,lowmem=args.lowmem)
+      main(args.filename, nd=args.n, ld=args.l, coff=args.c, gs=args.g, mu=args.mu, centerweight=args.cw, periodic=args.periodic, usekit=args.usekit, kit=args.kit,alchemyrules=args.alchemy_rules, kmode=args.kernel, permanenteps=args.permanenteps, reggamma=args.gamma, noatom=noatom, nocenter=nocenter, nprocs=args.np, verbose=args.verbose, envij=envij, prefix=args.prefix, nlandmark=args.nlandmarks, printsim=args.distance,ref_xyz=args.refxyz,partialsim=args.livek,lowmem=args.lowmem,restartflag=args.restart)

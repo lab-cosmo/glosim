@@ -253,7 +253,9 @@ class structurelist(list):
         
     def exists(self, index):
         # return true if the file associated with index exists, false otherwise
-        
+        f=self.basedir+'/sl_'+str(index)+'.dat'
+        return os.path.isfile(f)
+ 
     def append(self, element):
         #pickle the element for later use
         ind=self.count
