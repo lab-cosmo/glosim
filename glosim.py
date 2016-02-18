@@ -13,47 +13,16 @@ from multiprocessing import Process, Value, Array
 import argparse
 from random import randint
 from libmatch.environments import alchemy, environ
-from libmatch.structures import structk, structure
+from libmatch.structures import structk, structure, structurelist
 import os
 import numpy as np
 from copy import copy 
-import pickle
-class structurelist(list):
 
-    def __init__(self, lowmem=False, basedir="tmpstructures"):
-        self.basedir=basedir
-        if lowmem:
-          if not os.path.exists(basedir):os.makedirs(basedir)
-         # create the folder if it is not there
-        self.lowmem=lowmem
-#        self.storage=[]
-        self.count=0
-        
-    def append(self, element):
-#        if self.lowmem:
-            #piclke
-            # self.storage.append("filename where the new element is stored")
-            ind=self.count
-            f=self.basedir+'/sl_'+str(ind)+'.dat'
-            file=open(f,"w")
-            pickle.dump(element, file,protocol=2)
-            file.close()
-            self.count+=1
-#        else:
-#            super(structurelist,self).append(element)
-
-    def __getitem__(self, index):
-
-#        if self.lowmem:
-            f=self.basedir+'/sl_'+str(index)+'.dat'
-            file=open(f,"r")
-            l=pickle.load(file)
-            return  l
-            file.close()
-            #pass
-#        else:
-#            val=list.__getitem__(self, index)
-#            return  val
+# tries really hard to flush any buffer to disk!
+def flush(stream):
+    stream.flush()
+    os.fsync(stream)
+   
 
 def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanenteps, reggamma, nocenter, noatom, nprocs, verbose=False, envij=None, usekit=False, kit="auto", alchemyrules="none",prefix="",nlandmark=0, printsim=False,ref_xyz="",partialsim=False,lowmem=False):
     print >>sys.stderr, "    ___  __    _____  ___  ____  __  __ ";
@@ -97,7 +66,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
        alchem = alchemy(mu=mu,rules=r)
       
     if lowmem:
-       sl = structurelist(lowmem=lowmem)
+       sl = structurelist()
     else:
        sl=[]
     iframe = 0      
@@ -177,7 +146,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
         # sets alchemical matrix
         alchem = alchemy(mu=mu)
         if (lowmem):
-          sl_ref = structurelist(lowmem=lowmem)
+          sl_ref = structurelist()
         else:
           sl_ref=[]
         iframe = 0
@@ -321,7 +290,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
         m = nlandmark
         sim = np.zeros((m,m))
         sim_rect=np.zeros((m,nf))
-        dist_list=[]
+        dist_list = np.zeros(nf, float)
         landmarks=[]         
         iframe=0       
 #        iframe=randint(0,nf-1)  # picks a random frame
@@ -329,20 +298,26 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
         landmarks.append(iframe)
         for jframe in range(nf):            
             sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=kmode, fout=None,peps = permanenteps, gamma=reggamma)
-            sim_rect[iland][jframe]=sij/np.sqrt(nrm[iframe]*nrm[jframe])
-            dist_list.append(np.sqrt(max(0,2-2*sij))) # use kernel metric
+            sij/=np.sqrt(nrm[iframe]*nrm[jframe])
+            sim_rect[iland][jframe]=sij
+            dist_list[jframe] = np.sqrt(max(0,2-2*sij)) # use kernel metric
         #for x in sim_rect[iland][:]:
         #    fsim.write("%8.4e " %(x))
         #fsim.write("\n")
         landlist.write("# Landmark list\n")
         landlist.write("%d\n" % (landmarks[0]))
-        landxyz.write(al[landmarks[0]])
+        landxyz.write(al[landmarks[0]])        
+        flush(landlist)
+                    
         if(partialsim):
             for x in sim_rect[iland,:]:
                 pfkernel.write("%20.12e " % (x))
             pfkernel.write("\n")
+            flush(pfkernel)
+            
         for iland in range(1,m):
             maxd=0.0
+            maxj=-1
             for jframe in range(nf):
                 if(dist_list[jframe]>maxd):
                     maxd=dist_list[jframe]
@@ -350,62 +325,56 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
             landmarks.append(maxj)
             landxyz.write(al[maxj])
             landlist.write("%d\n" % (maxj))
+            flush(landlist)
+                        
             
             sys.stderr.write("Landmark %5d    maxd %f                          \r" % (iland, maxd))
-            iframe=maxj
+            iframe = maxj
+            sli = sl[iframe]
             if (nprocs<=1):
-             for jframe in range(nf):                
-                sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma)
-                sim_rect[iland][jframe]=sij/np.sqrt(nrm[iframe]*nrm[jframe])
+              for jframe in range(nf):                
+                sij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma)
+                # normalize the kernel
+                sij/=np.sqrt(nrm[iframe]*nrm[jframe])
+                sim_rect[iland][jframe]=sij
                 dij = np.sqrt(max(0,2-2*sij))
                 if(dij<dist_list[jframe]): dist_list[jframe]=dij
             else:
 		      # multiple processors
-              def docol(iproc,pdist,psim,iframe,jframe1,jframe2):
-                  for jframe in range(jframe1,jframe2):                                
-                     sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma)
-                     psim[jframe]=sij/np.sqrt(nrm[iframe]*nrm[jframe])
+              def docol(pdist, psim, iframe, nf, nproc, iproc):
+                  for jframe in range(iproc, nf, nproc):                                
+                     sij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma)
+                     sij/=np.sqrt(nrm[iframe]*nrm[jframe])                
+                     psim[jframe]=sij
                      dij= np.sqrt(max(0,2-2*sij))
-                     if(dij<dist_list[jframe]): pdist[iproc*nf+jframe]=dij
+                     if (dij < pdist[jframe]): pdist[jframe]=dij
                #   print iframe,jframe
                
               proclist = []   
-              pdist = Array('d', nf*nprocs, lock=False)
+              pdist = Array('d', nf, lock=False)
               psim = Array('d', nf, lock=False)
-              for iproc in range(nprocs):
-                 for jframe in range(nf):pdist[iproc*nf+jframe]=dist_list[jframe]
+              pdist[:] = dist_list[:]
+
               jframe_split_list=[]
-              fpp=int(nf/nprocs)
-              for i in range(nprocs):
-                jframe_split_list.append(i*fpp)
-              jframe_split_list.append(nf)
-           #   if(iland==1):print "jframe splitlist",jframe_split_list,'\n'
-              for iproc in range(1,nprocs+1): 
+              for iproc in range(nprocs): 
                  while(len(proclist)>=nprocs):
-                    #print "proclist",proclist
                     for ip in proclist:
                         if not ip.is_alive(): proclist.remove(ip)            
                         time.sleep(0.01)
-                 jframe1=jframe_split_list[iproc-1]
-                 jframe2=jframe_split_list[iproc]
-                 sp = Process(target=docol, name="docol proc", kwargs={"iproc":iproc-1,"pdist":pdist,"psim":psim,"iframe":iframe,"jframe1":jframe1,"jframe2":jframe2})  
+                 sp = Process(target=docol, name="docol proc", kwargs={"iproc":iproc,"pdist":pdist,"psim":psim,"iframe":iframe,"nproc":nprocs,"nf":nf})  
                  proclist.append(sp)
                  sp.start()
-                 sys.stderr.write("Landmark %d, Matrix row %d, %d active processes     \r" % (iland,jframe2, len(proclist)))
+                 sys.stderr.write("Landmark %d, Process %d/%d          \r" % (iland, iproc, len(proclist)))
              
                  # waits for all threads to finish
               for ip in proclist:
-                   while ip.is_alive(): ip.join(0.1)  
+                 while ip.is_alive(): ip.join(0.1)  
          
                 # copies from the shared memory array to Sim.
               for jframe in range(nf):
-                   dist_list[jframe]=pdist[jframe]
-                   for iproc in range(1,nprocs):
-                     if(dist_list[jframe]>pdist[iproc*nf+jframe]):
-                       # print iproc,pdist[iproc*nf+jframe]
-                        dist_list[jframe]=pdist[iproc*nf+jframe]
-                   sim_rect[iland][jframe]=psim[jframe]    
-            if(partialsim):
+                 dist_list[jframe]=pdist[jframe]
+                 sim_rect[iland][jframe]=psim[jframe]    
+              if(partialsim):
                 for x in sim_rect[iland,:]:
                    pfkernel.write("%20.12e " % (x))
                 pfkernel.write("\n")

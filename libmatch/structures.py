@@ -7,7 +7,7 @@
 # atom number and kinds, and sports the infrastructure for introducing an
 # alchemical similarity kernel to match different atomic species
 
-import sys
+import sys, os, pickle
 from lap.lap import best_pairs, best_cost, lcm_best_cost
 from lap.perm import xperm, mcperm, regmatch
 import numpy as np
@@ -242,27 +242,30 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
    
          
    return cost
-   
+
+
 class structurelist(list):
-    
-    def __init__(self, lowmem=False, basedir="tmpstructrures"):
+    def __init__(self, basedir="tmpstructures"):
         self.basedir=basedir
-        # create the folder if it is not there
-                
-        self.storage=[]
+        # create the folder if it is not there        
+        if not os.path.exists(basedir):os.makedirs(basedir)
+        self.count=0
         
     def append(self, element):
-        if self.lowmem:
-            #piclke
-            self.storage.append("filename where the new element is stored")
-            pass
-        else:
-            self.storage.append(element)
-            
+        #pickle the element for later use
+        ind=self.count
+        f=self.basedir+'/sl_'+str(ind)+'.dat'
+        file=open(f,"w")
+        pickle.dump(element, file,protocol=2)
+        file.close()
+        self.count+=1
+
     def __getitem__(self, index):
-        
-        if self.lowmem:
-            # unpicle and return
-            pass
-        else:
-            return self.storage[index]
+        f=self.basedir+'/sl_'+str(index)+'.dat'
+        try:
+            file=open(f,"r")
+        except IOError:
+            raise IOError("Cannot load descriptors for index %d" % (index) )
+        l=pickle.load(file)
+        file.close()
+        return l
