@@ -251,6 +251,9 @@ class structurelist(list):
         if not os.path.exists(basedir):os.makedirs(basedir)
         self.count=0
         
+    def exists(self, index):
+        # return true if the file associated with index exists, false otherwise
+        
     def append(self, element):
         #pickle the element for later use
         ind=self.count

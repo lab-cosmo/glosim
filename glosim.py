@@ -105,9 +105,13 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
             if verbose: qlog.write(at)
 
             # parses one of the structures, topping up atoms with isolated species if requested
-            si = structure(alchem)
-            si.parse(at, coff, nd, ld, gs, centerweight, nocenter, noatom, kit = kit)
-            sl.append(si)
+            if restartflag and lowmem and sl.exists(iframe):
+                si = sl[iframe]
+            else:
+                si = structure(alchem)
+                si.parse(at, coff, nd, ld, gs, centerweight, nocenter, noatom, kit = kit)
+                sl.append(si)
+            
             if verbose:
                 slog.write("# Frame %d \n" % (iframe))
                 fii = open(prefix+".environ-"+str(iframe)+"-"+str(iframe)+".dat", "w")
