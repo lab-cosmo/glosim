@@ -271,17 +271,20 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
                 proclist.append(sp)
                 sp.start()
                 sys.stderr.write("Matrix row %d, %d active processes     \r" % (iframe, len(proclist)))
+                
+                # waits for all threads to finish            
                 for ip in proclist:
                   while ip.is_alive(): ip.join(0.1)  
+                  
                 for jframe in range(0,nf_ref):
                     sim[iframe,jframe]=psim[iframe*nf_ref+jframe]   
+                    
                 if(partialsim):
                   for x in sim[iframe,:]:
                     pfkernel.write("%20.12e " % (x))
                   pfkernel.write("\n")
                   flush(pfkernel)
             
-            # waits for all threads to finish
             for ip in proclist:
                 while ip.is_alive(): ip.join(0.1)  
          
@@ -572,15 +575,6 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
                     fsim.write("%16.8e " % (np.sqrt(max(2-2*x,0))))
                 fsim.write("\n")  
     sys.stderr.write("\n ============= Glosim Ended Successfully ============== \n") 
-def gcd(a,b):
-   if (b>a): a,b = b, a
-
-   while (b):  a, b = b, a%b
-
-   return a
-
-def lcm(a,b):
-   return a*b/gcd(b,a)
 
 if __name__ == '__main__':
       parser = argparse.ArgumentParser(description="""Computes the similarity matrix between a set of atomic structures 
