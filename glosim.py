@@ -235,7 +235,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
         sim = np.zeros((nf,nf_ref))
         sys.stderr.write("Computing Similarity Matrix           \n")
         if (partialsim): 
-          pfkernel=open(prefix+".k.partial","w")
+          pfkernel=open(prefix+"_rec.k.partial","w")
           pfkernel.write("# OOS Kernel matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)) )
           if (usekit):pfkernel.write( " Using reference kit: %s " % (str(kit)) )
           if (alchemyrules!="none"):pfkernel.write( " Using alchemy rules: %s " % (alchemyrules) )
@@ -254,47 +254,34 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
               pfkernel.write("\n")
               flush(pfkernel)
         else:    
-        # multiple processors
-            def dorow(irow, nf_ref, psim): 
-                for jframe in range(0,nf_ref):
-                    sij = structk(sl[iframe], sl_ref[jframe], alchem, periodic, mode=kmode,fout=None, peps = permanenteps, gamma=reggamma)          
-                    psim[irow*nf_ref+jframe]=sij/np.sqrt(nrm[irow]*nrm_ref[jframe])  
-               
-            proclist = []   
-            psim = Array('d', nf*nf_ref, lock=False)      
-            for iframe in range (0, nf):
+            for iframe in range (0,nf):
+              sli=sl[iframe]  
+              def dorow(irow,nf_ref,nprocs,iproc, psim):
+                for jframe in range(iproc,nf_ref,nprocs):
+                    sij = structk(sli, sl_ref[jframe], alchem, periodic, mode=kmode,fout=None, peps = permanenteps, gamma=reggamma)
+                    psim[jframe]=sij/np.sqrt(nrm[irow]*nrm_ref[jframe])
+              proclist = []
+              psim = Array('d', nf_ref, lock=False)
+              for iproc in range (nprocs):
                 while(len(proclist)>=nprocs):
                     for ip in proclist:
-                        if not ip.is_alive(): proclist.remove(ip)            
+                        if not ip.is_alive(): proclist.remove(ip)
                         time.sleep(0.01)
-                sp = Process(target=dorow, name="doframe proc", kwargs={"irow":iframe, "nf_ref":nf_ref, "psim": psim})  
+                sp = Process(target=dorow, name="doframe proc", kwargs={"irow":iframe,"nf_ref":nf_ref, "nprocs":nprocs,"iproc":iproc, "psim": psim})
                 proclist.append(sp)
                 sp.start()
                 sys.stderr.write("Matrix row %d, %d active processes     \r" % (iframe, len(proclist)))
-                
-                # waits for all threads to finish            
-                for ip in proclist:
-                  while ip.is_alive(): ip.join(0.1)  
-                  
-                for jframe in range(0,nf_ref):
-                    sim[iframe,jframe]=psim[iframe*nf_ref+jframe]   
-                    
-                if(partialsim):
+              for ip in proclist:
+                   while ip.is_alive(): ip.join(0.1)
+              for jframe in range(0,nf_ref):
+                    sim[iframe,jframe]=psim[jframe]
+              if(partialsim):
                   for x in sim[iframe,:]:
                     pfkernel.write("%20.12e " % (x))
                   pfkernel.write("\n")
                   flush(pfkernel)
-            
-            for ip in proclist:
-                while ip.is_alive(): ip.join(0.1)  
-         
-            # copies from the shared memory array to Sim.
-            #for iframe in range (0, nf):      
-             #   for jframe in range(0,nf_ref):
-              #      sim[iframe,jframe]=psim[iframe*nf_ref+jframe]   
-        #===================================================================            
+
         if(partialsim):pfkernel.close()
-                    
         fkernel = open(prefix+"_rect.k", "w")  
         fkernel.write("# OOS Kernel matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)) )
         if (usekit):fkernel.write( " Using reference kit: %s " % (str(kit)) )
@@ -328,7 +315,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
         landlist=open(prefix+".landmarks","w")
         landxyz=quippy.AtomsWriter(prefix+".landmarks.xyz")   
         if (partialsim): 
-          pfkernel=open(prefix+".k.partial","w")
+          pfkernel=open(prefix+"oos.k.partial","w")
           pfkernel.write("# Kernel matrix for OOS from %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s" % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)) )
           if (usekit):pfkernel.write( " Using reference kit: %s " % (str(kit)) )
           if (alchemyrules!="none"):pfkernel.write( " Using alchemy rules: %s " % (alchemyrules) )
@@ -515,29 +502,29 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
                   flush(pfkernel)
         else:      
             # multiple processors
-            def dorow(irow, nf, psim):
-                sli=sl[irow] 
-                for jframe in range(0,irow):
+            for iframe in range (nf):   
+              sli=sl[iframe] 
+              def dorow(irow,nf,nprocs,iproc, psim):
+                for jframe in range(iproc,nf,nprocs):
                     sij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, peps = permanenteps, gamma=reggamma)          
-                    psim[irow*nf+jframe]=sij/np.sqrt(nrm[irow]*nrm[jframe])  
-               
-            proclist = []   
-            psim = Array('d', nf*nf, lock=False)      
-            for iframe in range (0, nf):
-                sim[iframe,iframe]=1.0
+                    psim[jframe]=sij/np.sqrt(nrm[irow]*nrm[jframe])  
+              proclist = []   
+              psim = Array('d', nf, lock=False)      
+              sim[iframe,iframe]=1.0
+              for iproc in range (nprocs):
                 while(len(proclist)>=nprocs):
                     for ip in proclist:
                         if not ip.is_alive(): proclist.remove(ip)            
                         time.sleep(0.01)
-                sp = Process(target=dorow, name="doframe proc", kwargs={"irow":iframe, "nf":nf, "psim": psim})  
+                sp = Process(target=dorow, name="doframe proc", kwargs={"irow":iframe,"nf":iframe, "nprocs":nprocs,"iproc":iproc, "psim": psim})  
                 proclist.append(sp)
                 sp.start()
                 sys.stderr.write("Matrix row %d, %d active processes     \r" % (iframe, len(proclist)))
-                for ip in proclist:
+              for ip in proclist:
                    while ip.is_alive(): ip.join(0.1)  
-                for jframe in range(0,iframe):
-                    sim[iframe,jframe]=sim[jframe,iframe]=psim[iframe*nf+jframe]
-                if(partialsim):
+              for jframe in range(0,iframe):
+                    sim[iframe,jframe]=sim[jframe,iframe]=psim[jframe]
+              if(partialsim):
                   for x in sim[iframe,0:iframe]:
                     pfkernel.write("%20.12e " % (x))
                   pfkernel.write("\n")
