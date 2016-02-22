@@ -547,7 +547,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
             #for iframe in range (0, nf):      
              #   for jframe in range(0,iframe):
             #        sim[iframe,jframe]=sim[jframe,iframe]=psim[iframe*nf+jframe]
-        pfkernel.close()
+        if(partialsim):pfkernel.close()
         fkernel = open(prefix+".k", "w")  
         fkernel.write("# Kernel matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)) )
         if (usekit):fkernel.write( " Using reference kit: %s " % (str(kit)) )
