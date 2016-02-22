@@ -126,11 +126,10 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
                 return                                                                  #  it will store the missing frame as first frame file.
              
             else:
-                sys.stderr.write("Frame %d                              \r" %(iframe) )
                 si = structure(alchem)
+                sys.stderr.write("Frame %d                              \r" %(iframe) )
                 si.parse(at, coff, nd, ld, gs, centerweight, nocenter, noatom, kit = kit)
                 sl.append(si)
-            
             if verbose:
                 slog.write("# Frame %d \n" % (iframe))
                 fii = open(prefix+".environ-"+str(iframe)+"-"+str(iframe)+".dat", "w")
@@ -141,12 +140,11 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
                         ik+=1
                         for p, s in ii.soaps.iteritems():
                             slog.write("%d %d   " % p)
-                            for si in s:
-                                slog.write("%8.4e " %(si))                        
+                            for sj in s:
+                                slog.write("%8.4e " %(sj))                        
                             slog.write("\n")
             else:
                fii = None
-             
             sii = structk(si, si, alchem, periodic, mode=kmode, fout=fii, peps=permanenteps, gamma=reggamma)        
             nrm[icount]=sii     
             icount +=1    
@@ -227,8 +225,8 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
                             ik+=1
                             for p, s in ii.soaps.iteritems():
                                 slogref.write("%d %d   " % p)
-                                for si in s:
-                                    slogref.write("%8.4e " %(si))
+                                for sj in s:
+                                    slogref.write("%8.4e " %(sj))
                                 slogref.write("\n")
                 sii = structk(si, si, alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma)        
                 nrm_ref[iframe]=sii        
