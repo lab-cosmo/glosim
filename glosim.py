@@ -339,8 +339,9 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
 #        iframe=randint(0,nf-1)  # picks a random frame
         iland=0
         landmarks.append(iframe)
+        sli=sl[iframe]
         for jframe in range(nf):            
-            sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=kmode, fout=None,peps = permanenteps, gamma=reggamma)
+            sij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, fout=None,peps = permanenteps, gamma=reggamma)
             sij/=np.sqrt(nrm[iframe]*nrm[jframe])
             sim_rect[iland][jframe]=sij
             dist_list[jframe] = np.sqrt(max(0,2-2*sij)) # use kernel metric
