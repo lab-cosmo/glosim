@@ -33,6 +33,9 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
     print >>sys.stderr, "                                         ";
     filename = filename[0]
     # sets a few defaults
+    if ( (ref_xyz !="") and envij != None): 
+       print >> sys.stderr,"--ij option is not compitable with --refxyz "
+       return 
     if (restartflag and  (not lowmem)):  
        print >> sys.stderr,"lowmem option has to be activated for restart flag"
        return 
@@ -100,9 +103,14 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
         iframe=0
         print >> sys.stderr, "Using kit: ", kit
     else: kit=None
-    nf = len(al.n)  
+    if (envij==None):
+       nf = len(al.n) 
+    else:
+       nf=len(envij)
+ 
     nf_ref=nf 
     iframe=0 
+    icount=0
     nrm = np.zeros(nf,float)
     for at in al:
         if envij == None or iframe in envij:
@@ -118,11 +126,10 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
                 return                                                                  #  it will store the missing frame as first frame file.
              
             else:
-                sys.stderr.write("Frame %d                              \r" %(iframe) )
                 si = structure(alchem)
+                sys.stderr.write("Frame %d                              \r" %(iframe) )
                 si.parse(at, coff, nd, ld, gs, centerweight, nocenter, noatom, kit = kit)
                 sl.append(si)
-            
             if verbose:
                 slog.write("# Frame %d \n" % (iframe))
                 fii = open(prefix+".environ-"+str(iframe)+"-"+str(iframe)+".dat", "w")
@@ -133,14 +140,14 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
                         ik+=1
                         for p, s in ii.soaps.iteritems():
                             slog.write("%d %d   " % p)
-                            for si in s:
-                                slog.write("%8.4e " %(si))                        
+                            for sj in s:
+                                slog.write("%8.4e " %(sj))                        
                             slog.write("\n")
             else:
                fii = None
-             
             sii = structk(si, si, alchem, periodic, mode=kmode, fout=fii, peps=permanenteps, gamma=reggamma)        
-            nrm[iframe]=sii        
+            nrm[icount]=sii     
+            icount +=1    
         iframe +=1; 
       
     print >> sys.stderr, "Computing kernel matrix"
@@ -194,15 +201,14 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
         nrm_ref = np.zeros(nf_ref,float)
         iframe=0
         for at in alref:
-            if envij == None or iframe in envij:
+            if envij == None or iframe in envij: 
                 sys.stderr.write("Frame %d                              \r" %(iframe) )
                 if verbose: qlogref.write(at)
-
                 # parses one of the structures, topping up atoms with isolated species if requested
                 if restartflag: #if we are restarting from previously calculated soap files
-                   if sl.exists(iframe):
+                   if sl_ref.exists(iframe):
                      sys.stderr.write ("Reading SOAP for reference frame %d       \r " %(iframe))
-                     si = sl[iframe]
+                     si = sl_ref[iframe]
                    else: 
                      print >> sys.stderr, "\n Could not Find file for reference frame: ", iframe ,"\n" # At the moment the way it is implemented if it does not exist and recalculate
                      return                                                                 #  it will store the missing frame as first frame file.
@@ -219,13 +225,12 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
                             ik+=1
                             for p, s in ii.soaps.iteritems():
                                 slogref.write("%d %d   " % p)
-                                for si in s:
-                                    slogref.write("%8.4e " %(si))
+                                for sj in s:
+                                    slogref.write("%8.4e " %(sj))
                                 slogref.write("\n")
-
-            sii = structk(si, si, alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma)        
-            nrm_ref[iframe]=sii        
-            iframe +=1;
+                sii = structk(si, si, alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma)        
+                nrm_ref[iframe]=sii        
+                iframe +=1;
 
         print >> sys.stderr, "Computing kernel matrix"
         # must fix the normalization of the similarity matrix!
@@ -235,7 +240,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
         sim = np.zeros((nf,nf_ref))
         sys.stderr.write("Computing Similarity Matrix           \n")
         if (partialsim): 
-          pfkernel=open(prefix+".k.partial","w")
+          pfkernel=open(prefix+"_rect.k.partial","w")
           pfkernel.write("# OOS Kernel matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)) )
           if (usekit):pfkernel.write( " Using reference kit: %s " % (str(kit)) )
           if (alchemyrules!="none"):pfkernel.write( " Using alchemy rules: %s " % (alchemyrules) )
@@ -245,8 +250,9 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
         if (nprocs<=1):
          for iframe in range(nf):
            sys.stderr.write("Matrix row %d                           \r" % (iframe))
+           sli=sl[iframe]
            for jframe in range(nf_ref):
-             sij = structk(sl[iframe], sl_ref[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma)
+             sij = structk(sli, sl_ref[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma)
              sim[iframe][jframe]=sij/np.sqrt(nrm[iframe]*nrm_ref[jframe])
            if(partialsim):
               for x in sim[iframe,:]:
@@ -254,47 +260,34 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
               pfkernel.write("\n")
               flush(pfkernel)
         else:    
-        # multiple processors
-            def dorow(irow, nf_ref, psim): 
-                for jframe in range(0,nf_ref):
-                    sij = structk(sl[iframe], sl_ref[jframe], alchem, periodic, mode=kmode,fout=None, peps = permanenteps, gamma=reggamma)          
-                    psim[irow*nf_ref+jframe]=sij/np.sqrt(nrm[irow]*nrm_ref[jframe])  
-               
-            proclist = []   
-            psim = Array('d', nf*nf_ref, lock=False)      
-            for iframe in range (0, nf):
+            for iframe in range (0,nf):
+              sli=sl[iframe]  
+              def dorow(irow,nf_ref,nprocs,iproc, psim):
+                for jframe in range(iproc,nf_ref,nprocs):
+                    sij = structk(sli, sl_ref[jframe], alchem, periodic, mode=kmode,fout=None, peps = permanenteps, gamma=reggamma)
+                    psim[jframe]=sij/np.sqrt(nrm[irow]*nrm_ref[jframe])
+              proclist = []
+              psim = Array('d', nf_ref, lock=False)
+              for iproc in range (nprocs):
                 while(len(proclist)>=nprocs):
                     for ip in proclist:
-                        if not ip.is_alive(): proclist.remove(ip)            
+                        if not ip.is_alive(): proclist.remove(ip)
                         time.sleep(0.01)
-                sp = Process(target=dorow, name="doframe proc", kwargs={"irow":iframe, "nf_ref":nf_ref, "psim": psim})  
+                sp = Process(target=dorow, name="doframe proc", kwargs={"irow":iframe,"nf_ref":nf_ref, "nprocs":nprocs,"iproc":iproc, "psim": psim})
                 proclist.append(sp)
                 sp.start()
                 sys.stderr.write("Matrix row %d, %d active processes     \r" % (iframe, len(proclist)))
-                
-                # waits for all threads to finish            
-                for ip in proclist:
-                  while ip.is_alive(): ip.join(0.1)  
-                  
-                for jframe in range(0,nf_ref):
-                    sim[iframe,jframe]=psim[iframe*nf_ref+jframe]   
-                    
-                if(partialsim):
+              for ip in proclist:
+                   while ip.is_alive(): ip.join(0.1)
+              for jframe in range(0,nf_ref):
+                    sim[iframe,jframe]=psim[jframe]
+              if(partialsim):
                   for x in sim[iframe,:]:
                     pfkernel.write("%20.12e " % (x))
                   pfkernel.write("\n")
                   flush(pfkernel)
-            
-            for ip in proclist:
-                while ip.is_alive(): ip.join(0.1)  
-         
-            # copies from the shared memory array to Sim.
-            #for iframe in range (0, nf):      
-             #   for jframe in range(0,nf_ref):
-              #      sim[iframe,jframe]=psim[iframe*nf_ref+jframe]   
-        #===================================================================            
+
         if(partialsim):pfkernel.close()
-                    
         fkernel = open(prefix+"_rect.k", "w")  
         fkernel.write("# OOS Kernel matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)) )
         if (usekit):fkernel.write( " Using reference kit: %s " % (str(kit)) )
@@ -328,7 +321,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
         landlist=open(prefix+".landmarks","w")
         landxyz=quippy.AtomsWriter(prefix+".landmarks.xyz")   
         if (partialsim): 
-          pfkernel=open(prefix+".k.partial","w")
+          pfkernel=open(prefix+"oos.k.partial","w")
           pfkernel.write("# Kernel matrix for OOS from %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s" % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)) )
           if (usekit):pfkernel.write( " Using reference kit: %s " % (str(kit)) )
           if (alchemyrules!="none"):pfkernel.write( " Using alchemy rules: %s " % (alchemyrules) )
@@ -344,8 +337,9 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
 #        iframe=randint(0,nf-1)  # picks a random frame
         iland=0
         landmarks.append(iframe)
+        sli=sl[iframe]
         for jframe in range(nf):            
-            sij = structk(sl[iframe], sl[jframe], alchem, periodic, mode=kmode, fout=None,peps = permanenteps, gamma=reggamma)
+            sij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, fout=None,peps = permanenteps, gamma=reggamma)
             sij/=np.sqrt(nrm[iframe]*nrm[jframe])
             sim_rect[iland][jframe]=sij
             dist_list[jframe] = np.sqrt(max(0,2-2*sij)) # use kernel metric
@@ -515,29 +509,29 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
                   flush(pfkernel)
         else:      
             # multiple processors
-            def dorow(irow, nf, psim):
-                sli=sl[irow] 
-                for jframe in range(0,irow):
+            for iframe in range (nf):   
+              sli=sl[iframe] 
+              def dorow(irow,nf,nprocs,iproc, psim):
+                for jframe in range(iproc,nf,nprocs):
                     sij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, peps = permanenteps, gamma=reggamma)          
-                    psim[irow*nf+jframe]=sij/np.sqrt(nrm[irow]*nrm[jframe])  
-               
-            proclist = []   
-            psim = Array('d', nf*nf, lock=False)      
-            for iframe in range (0, nf):
-                sim[iframe,iframe]=1.0
+                    psim[jframe]=sij/np.sqrt(nrm[irow]*nrm[jframe])  
+              proclist = []   
+              psim = Array('d', nf, lock=False)      
+              sim[iframe,iframe]=1.0
+              for iproc in range (nprocs):
                 while(len(proclist)>=nprocs):
                     for ip in proclist:
                         if not ip.is_alive(): proclist.remove(ip)            
                         time.sleep(0.01)
-                sp = Process(target=dorow, name="doframe proc", kwargs={"irow":iframe, "nf":nf, "psim": psim})  
+                sp = Process(target=dorow, name="doframe proc", kwargs={"irow":iframe,"nf":iframe, "nprocs":nprocs,"iproc":iproc, "psim": psim})  
                 proclist.append(sp)
                 sp.start()
                 sys.stderr.write("Matrix row %d, %d active processes     \r" % (iframe, len(proclist)))
-                for ip in proclist:
+              for ip in proclist:
                    while ip.is_alive(): ip.join(0.1)  
-                for jframe in range(0,iframe):
-                    sim[iframe,jframe]=sim[jframe,iframe]=psim[iframe*nf+jframe]
-                if(partialsim):
+              for jframe in range(0,iframe):
+                    sim[iframe,jframe]=sim[jframe,iframe]=psim[jframe]
+              if(partialsim):
                   for x in sim[iframe,0:iframe]:
                     pfkernel.write("%20.12e " % (x))
                   pfkernel.write("\n")
@@ -551,7 +545,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
             #for iframe in range (0, nf):      
              #   for jframe in range(0,iframe):
             #        sim[iframe,jframe]=sim[jframe,iframe]=psim[iframe*nf+jframe]
-        pfkernel.close()
+        if(partialsim):pfkernel.close()
         fkernel = open(prefix+".k", "w")  
         fkernel.write("# Kernel matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)) )
         if (usekit):fkernel.write( " Using reference kit: %s " % (str(kit)) )
