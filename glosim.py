@@ -254,7 +254,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
            for jframe in range(nf_ref):
              sij = structk(sli, sl_ref[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma)
              sim[iframe][jframe]=sij/np.sqrt(nrm[iframe]*nrm_ref[jframe])
-           if(partialsim):
+         if(partialsim):
               for x in sim[iframe,:]:
                 pfkernel.write("%20.12e " % (x))
               pfkernel.write("\n")
@@ -332,32 +332,90 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
         sim = np.zeros((m,m))
         sim_rect=np.zeros((m,nf))
         dist_list = np.zeros(nf, float)
-        landmarks=[]         
-        iframe=0       
-#        iframe=randint(0,nf-1)  # picks a random frame
-        iland=0
-        landmarks.append(iframe)
-        sli=sl[iframe]
-        for jframe in range(nf):            
-            sij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, fout=None,peps = permanenteps, gamma=reggamma)
-            sij/=np.sqrt(nrm[iframe]*nrm[jframe])
-            sim_rect[iland][jframe]=sij
-            dist_list[jframe] = np.sqrt(max(0,2-2*sij)) # use kernel metric
-        #for x in sim_rect[iland][:]:
-        #    fsim.write("%8.4e " %(x))
-        #fsim.write("\n")
-        landlist.write("# Landmark list\n")
-        landlist.write("%d\n" % (landmarks[0]))
-        landxyz.write(al[landmarks[0]])        
-        flush(landlist)
-                    
-        if(partialsim):
-            for x in sim_rect[iland,:]:
-                pfkernel.write("%20.12e " % (x))
-            pfkernel.write("\n")
-            flush(pfkernel)
+        landmarks=[] 
+        restartland=False
+        if (restartflag and os.path.isfile("restart.k") and os.path.isfile("restart.landmarks")):restartland=True
+        if (restartland):
+            try:
+                k_in=np.loadtxt("restart.k")
+            except:
+                k_in=np.genfromtxt("restart.k",skip_footer=1)
+                print >> sys.stderr,"Incomplete last row. Ommiting last landmark"
+            nlandmark_in=len(k_in)
+            landmarks_in=np.loadtxt("restart.landmarks",dtype=int)
+            if(len(k_in[0]) != nf):
+              print >> sys.stderr,"Inconsistent frame numbers"
+              return
+            print >> sys.stderr,"Read Previously found ", nlandmark_in, " landmarks"
+            iframe=landmarks_in[0]
+            iland=0
+            landmarks.append(iframe)
+            for jframe in range(nf):            
+                sim_rect[iland][jframe]=k_in[iland][jframe]
+                dist_list[jframe] = np.sqrt(2.0-2.0*k_in[iland][jframe]) # use kernel metric
+            landlist.write("# Landmark list\n")
+            landlist.write("%d\n" % (landmarks[0]))
+            landxyz.write(al[landmarks[0]])        
+            flush(landlist)
+            if(partialsim):
+                for x in sim_rect[iland,:]:
+                    pfkernel.write("%20.12e " % (x))
+                pfkernel.write("\n")
+                flush(pfkernel)
             
-        for iland in range(1,m):
+            for iland in range(1,nlandmark_in):
+                maxd=0.0
+                maxj=-1
+                for jframe in range(nf):
+                    if(dist_list[jframe]>maxd):
+                        maxd=dist_list[jframe]
+                        maxj=jframe
+                landmarks.append(maxj)
+                if (landmarks[iland]!=landmarks_in[iland]):
+                    print >> sys.stderr,"ERROR !"
+                    return
+                landxyz.write(al[maxj])
+                landlist.write("%d\n" % (maxj))
+                flush(landlist)
+                sys.stderr.write("Landmark %5d    maxd %f                          \r" % (iland, maxd))
+                iframe = maxj
+                for jframe in range(nf):                
+                    sim_rect[iland][jframe]=k_in[iland][jframe]
+                    dij = np.sqrt(2.0-2.0*k_in[iland][jframe])
+                    if(dij<dist_list[jframe]): dist_list[jframe]=dij
+                if(partialsim):
+                  for x in sim_rect[iland,:]:
+                     pfkernel.write("%20.12e " % (x))
+                  pfkernel.write("\n")
+                  flush(pfkernel)
+            nlandstart=nlandmark_in
+        else:        
+            iframe=0       
+#            iframe=randint(0,nf-1)  # picks a random frame
+            iland=0
+            landmarks.append(iframe)
+            sli=sl[iframe]
+            for jframe in range(nf):            
+                sij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, fout=None,peps = permanenteps, gamma=reggamma)
+                sij/=np.sqrt(nrm[iframe]*nrm[jframe])
+                sim_rect[iland][jframe]=sij
+                dist_list[jframe] = np.sqrt(max(0,2-2*sij)) # use kernel metric
+            #for x in sim_rect[iland][:]:
+            #    fsim.write("%8.4e " %(x))
+            #fsim.write("\n")
+            landlist.write("# Landmark list\n")
+            landlist.write("%d\n" % (landmarks[0]))
+            landxyz.write(al[landmarks[0]])        
+            flush(landlist)
+                        
+            if(partialsim):
+                for x in sim_rect[iland,:]:
+                    pfkernel.write("%20.12e " % (x))
+                pfkernel.write("\n")
+                flush(pfkernel)
+            nlandstart=1
+            
+        for iland in range(nlandstart,m):
             maxd=0.0
             maxj=-1
             for jframe in range(nf):
@@ -381,6 +439,11 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
                 sim_rect[iland][jframe]=sij
                 dij = np.sqrt(max(0,2-2*sij))
                 if(dij<dist_list[jframe]): dist_list[jframe]=dij
+              if(partialsim):
+                  for x in sim_rect[iland,:]:
+                     pfkernel.write("%20.12e " % (x))
+                  pfkernel.write("\n")
+                  flush(pfkernel)
             else:
 		      # multiple processors
               def docol(pdist, psim, iframe, nf, nproc, iproc):
