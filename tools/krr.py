@@ -22,6 +22,15 @@ def segfind(cp, cs):
     else:
         return b
         
+def cur(kernel,tol=1.0e-4):
+
+    U, S, V = np.linalg.svd(kernel)
+    rank = list(S > tol).count(True) / 2
+    S[rank:] = 0.0
+    S = np.diag(S)
+    Ap = np.dot(np.dot(U,S),V)
+    p = np.sum(V[0:rank,:]**2, axis=0) / rank
+    return p
 
 def randomsubset(ndata, nsel, plist=None):    
     if nsel > ndata:
