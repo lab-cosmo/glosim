@@ -8,7 +8,7 @@
 # alchemical similarity kernel to match different atomic species
 
 import quippy
-import sys, time,ast
+import sys, time, ast
 from multiprocessing import Process, Value, Array
 import argparse
 from random import randint
@@ -100,6 +100,20 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
                         else:
                             kit[s]=max(kit[s], sp[s])
                 iframe+=1
+            if ref_xyz != "" : # also looks into reference xyz if given
+                for at in alref:
+                    sp = {} 
+                    for z in at.z:     
+                        if z in noatom or z in nocenter: continue  
+                        if z in sp: sp[z]+=1
+                        else: sp[z] = 1
+                    for s in sp:
+                        if not s in kit:
+                            kit[s]=sp[s]
+                        else:
+                            kit[s]=max(kit[s], sp[s])
+        else: # kit specified manually on command-line
+            kit = ast.literal_eval(kit)
         iframe=0
         print >> sys.stderr, "Using kit: ", kit
     else: kit=None
