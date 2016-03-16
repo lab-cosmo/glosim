@@ -17,7 +17,8 @@ from libmatch.structures import structk, structure, structurelist
 import os
 import numpy as np
 from copy import copy 
-
+from time import ctime
+from datetime import datetime
 # tries really hard to flush any buffer to disk!
 def flush(stream):
     stream.flush()
@@ -25,12 +26,14 @@ def flush(stream):
    
 
 def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanenteps, reggamma, nocenter, noatom, nprocs, verbose=False, envij=None, usekit=False, kit="auto", alchemyrules="none",prefix="",nlandmark=0, printsim=False,ref_xyz="",partialsim=False,lowmem=False,restartflag=False):
-    print >>sys.stderr, "    ___  __    _____  ___  ____  __  __ ";
-    print >>sys.stderr, "   / __)(  )  (  _  )/ __)(_  _)(  \/  )";
-    print >>sys.stderr, "  ( (_-. )(__  )(_)( \__ \ _)(_  )    ( ";
-    print >>sys.stderr, "   \___/(____)(_____)(___/(____)(_/\/\_)";
-    print >>sys.stderr, "                                        ";
-    print >>sys.stderr, "                                         ";
+    start_time = datetime.now()
+    print >>sys.stderr, "          TIME:  ", ctime() ;
+    print >>sys.stderr, "        ___  __    _____  ___  ____  __  __ ";
+    print >>sys.stderr, "       / __)(  )  (  _  )/ __)(_  _)(  \/  )";
+    print >>sys.stderr, "      ( (_-. )(__  )(_)( \__ \ _)(_  )    ( ";
+    print >>sys.stderr, "       \___/(____)(_____)(___/(____)(_/\/\_)";
+    print >>sys.stderr, "                                            ";
+    print >>sys.stderr, "                                             ";
     filename = filename[0]
     # sets a few defaults
     if ( (ref_xyz !="") and envij != None): 
@@ -646,6 +649,9 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
                     fsim.write("%16.8e " % (np.sqrt(max(2-2*x,0))))
                 fsim.write("\n")  
     sys.stderr.write("\n ============= Glosim Ended Successfully ============== \n") 
+    print >>sys.stderr, "          TIME:  ", ctime() ;
+    end_time = datetime.now()
+    print>>sys.stderr,('          Duration: {}'.format(end_time - start_time))
 
 if __name__ == '__main__':
       parser = argparse.ArgumentParser(description="""Computes the similarity matrix between a set of atomic structures 
