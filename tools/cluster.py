@@ -5,7 +5,11 @@ import sys
 import numpy as np
 import scipy.cluster.hierarchy as sc
 import itertools
-from matplotlib import pyplot as plt
+try:
+  from matplotlib import pyplot as plt
+except:
+  print "matplotlib is not available. You will not be able to plot"
+
 from collections import Counter
 
 def main(distmatrixfile,nclust,mode='average',proplist='',plot=False,calc_sd=False):
@@ -19,7 +23,9 @@ def main(distmatrixfile,nclust,mode='average',proplist='',plot=False,calc_sd=Fal
 #      if (acceleration[i]*acceleration[i-1])<0 : elbow=i
    print "mean+std, cutoffdist", np.sqrt(np.var(Z[:,2]))+np.mean(Z[:,2]),(Z[n-nclust,2])
    maxdist=(Z[n-nclust,2])*0.75
-   
+   cdist=Z[:,2] 
+   cdist.sort()
+   np.savetxt('dist.dat',cdist)
 #   print "ncluster",n-elbow
    clist=sc.fcluster(Z,nclust,criterion='maxclust')
    c_count=Counter(clist)
