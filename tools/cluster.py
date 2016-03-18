@@ -17,16 +17,12 @@ def main(distmatrixfile,nclust,mode='average',proplist='',plot=False,calc_sd=Fal
    sim=np.loadtxt(distmatrixfile)
    Z=sc.linkage(sim,mode)
    n=len(sim)
-#   acceleration = np.diff(Z[:,2], 2)  # 2nd derivative of the distances
-#   nl=len(acceleration)
-#   for i in range(nl-1,nl-15,-1):
-#      if (acceleration[i]*acceleration[i-1])<0 : elbow=i
-   print "mean+std, cutoffdist", np.sqrt(np.var(Z[:,2]))+np.mean(Z[:,2]),(Z[n-nclust,2])
-   maxdist=(Z[n-nclust,2])*0.75
    cdist=Z[:,2] 
-   cdist.sort()
-   np.savetxt('dist.dat',cdist)
-#   print "ncluster",n-elbow
+#   np.savetxt('dist.dat',cdist)
+   if nclust<2: 
+     nclust=estimate_ncluster(cdist)
+     print "Estimated ncluster:",nclust
+   print "mean+std, cutoffdist", np.sqrt(np.var(Z[:,2]))+np.mean(Z[:,2]),(Z[n-nclust,2])
    clist=sc.fcluster(Z,nclust,criterion='maxclust')
    c_count=Counter(clist)
    print "Number of clusters", len(c_count)
@@ -39,7 +35,7 @@ def main(distmatrixfile,nclust,mode='average',proplist='',plot=False,calc_sd=Fal
       #calculate mean dissimilarity in each group
       for iconf in range(len(indices)):
          ind1=indices[iconf]
-         for jconf in range(iconf):
+         for jconf in range(len(indices)):
            ind2=indices[jconf]
            sumd+=sim[ind1][ind2]
            icount+=1
@@ -55,13 +51,13 @@ def main(distmatrixfile,nclust,mode='average',proplist='',plot=False,calc_sd=Fal
         for jconf in range(len(indices)):
           ind2=indices[jconf]
           ivar+=(sim[ind1][ind2]-meand)**2
-        ivar=ivar/(len(indices)-1)
+        ivar=ivar/max(1,(len(indices)-1))
         var+=ivar  
         icount+=1      
         if(ivar<minvar):  
           minvar=ivar
           iselect=ind1
-      var=var/(icount)  
+      var=var/max(1,icount)  
       rep_ind.append(iselect)
       print len(indices), meand , np.sqrt(var) , iselect
 #   print rep_ind
@@ -155,6 +151,20 @@ def dissimilarity_sd(Z,sim):
 #    print len(clusterlist[i]),meand,var,sd,iselect,Z[i,2]
 #  print "clusters:", nl-elbow+2
 
+def estimate_ncluster(dist):
+  n=len(dist)
+  b=[n-1,dist[n-1]-dist[0]]
+  b=np.array(b)
+  b=b/np.linalg.norm(b)
+  dmax=0.0
+  for i in range(n):
+    p=[n-1-i,dist[n-1]-dist[i]]
+    d=np.linalg.norm(p-np.dot(p,b)*b)
+    if d>dmax :
+       elbow=i
+       dmax=d
+  return int((n-elbow)*0.5)
+
 
 def prop_sd(Z,prop):
   n=len(prop)
@@ -197,7 +207,7 @@ if __name__ == '__main__':
 
     parser.add_argument("sim", nargs=1, help="Kernel matrix")
     parser.add_argument("--mode", type=str, default="average", help="Train point selection (e.g. --mode all / random / fps / cur")
-    parser.add_argument("--nclust", type=int, default='10', help="Number of clusters")
+    parser.add_argument("--nclust", type=int, default='0', help="Number of clusters")
     parser.add_argument("--prop", type=str, default='', help="property file")
     parser.add_argument("--plot",  action="store_true", help="Plot the dendrogram")
     parser.add_argument("--calc_sd",  action="store_true", help="calculate standard div of the dist and prop for all level of clustering")
