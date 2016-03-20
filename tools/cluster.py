@@ -5,6 +5,7 @@ import sys
 import numpy as np
 import scipy.cluster.hierarchy as sc
 import itertools
+from os.path import basename
 try:
   from matplotlib import pyplot as plt
 except:
@@ -12,14 +13,21 @@ except:
 
 from collections import Counter
 
-def main(distmatrixfile,nclust,mode='average',proplist='',plot=False,calc_sd=False):
-   if proplist!='': prop=np.loadtxt(proplist)
+def main(distmatrixfile,nclust,mode='average',proplist='',plot=False,calc_sd=False,rect_matrixfile=''):
+   project=False
    sim=np.loadtxt(distmatrixfile)
+   if rect_matrixfile != '' :
+      rect_matrix=np.loadtxt(rect_matrixfile)
+      if (len(sim) != len(rect_matrix[0])):
+         print "Inconsistent dimesion of rect matrix file"
+         return
+      project=True
+   if proplist!='': prop=np.loadtxt(proplist)
    Z=sc.linkage(sim,mode)
    n=len(sim)
    cdist=Z[:,2] 
 #   np.savetxt('dist.dat',cdist)
-   if nclust<2: 
+   if nclust<1: 
      nclust=estimate_ncluster(cdist)
      print "Estimated ncluster:",nclust
    print "mean+std, cutoffdist", np.sqrt(np.var(Z[:,2]))+np.mean(Z[:,2]),(Z[n-nclust,2])
@@ -61,7 +69,7 @@ def main(distmatrixfile,nclust,mode='average',proplist='',plot=False,calc_sd=Fal
       rep_ind.append(iselect)
       print len(indices), meand , np.sqrt(var) , iselect
 #   print rep_ind
-   filename=mode+'-cluster.index'
+   filename=basename(distmatrixfile)+'-cluster.index'
    f=open(filename,"w")
    f.write("groupid representative \n ")
    for i in range(len(sim)):
@@ -69,6 +77,16 @@ def main(distmatrixfile,nclust,mode='average',proplist='',plot=False,calc_sd=Fal
       if i in rep_ind: iselect=2
       f.write("%d   %d \n " %(clist[i],  iselect)) 
    f.close()
+   if(project):
+     project_groupid,project_rep=project_config(clist,rect_matrix,rep_ind)
+     filename=basename(rect_matrixfile)+'-cluster.index'
+     f=open(filename,"w")
+     f.write("groupid representative \n ")
+     for i in range(len(project_groupid)):
+        iselect=0
+        if i in project_rep: iselect=2
+        f.write("%d   %d \n " %(project_groupid[i],  iselect)) 
+     f.close()
    if plot: plotdendro(Z,nclust)
    if (calc_sd):
      filename=mode+'-sd.dat'
@@ -91,7 +109,28 @@ def plotdendro(Z,ncluster):
   sc.dendrogram(Z,truncate_mode='lastp', p=ncluster,leaf_rotation=90.,leaf_font_size=8.,show_contracted=True)
   plt.show()
       
-       
+def project_config(clusterlist,rect_matrix,rep_ind):
+  nland=len(rect_matrix[0])
+  if nland != len(clusterlist) : 
+     print "Dimension Mismatch for rect matrix" 
+     stop 
+  n=len(rect_matrix)
+  groupid=[]
+  for i in range(n):
+    mind=10
+    for j  in range(nland): # find which cluster it belongs 
+        d=rect_matrix[i][j]
+        if d <mind : 
+            mind=d #find min distance config from config from  all clusters 
+            icluster_select=clusterlist[j]
+    groupid.append(icluster_select)
+  project_rep=[]
+  for iconfig in rep_ind: 
+    mind=np.min(rect_matrix[:,iconfig])
+    if (mind <1E-9):
+      iselect=np.argmin(rect_matrix[:,iconfig])               
+      project_rep.append(iselect)
+  return(groupid,project_rep)
 
 def dissimilarity_sd(Z,sim):
   n=len(sim)
@@ -206,12 +245,13 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="""Computes KRR and analytics based on a kernel matrix and a property vector.""")
 
     parser.add_argument("sim", nargs=1, help="Kernel matrix")
-    parser.add_argument("--mode", type=str, default="average", help="Train point selection (e.g. --mode all / random / fps / cur")
+    parser.add_argument("--mode", type=str, default="average", help="Linkage mode (e.g. --mode average/single/complete/median/centroid")
     parser.add_argument("--nclust", type=int, default='0', help="Number of clusters")
     parser.add_argument("--prop", type=str, default='', help="property file")
     parser.add_argument("--plot",  action="store_true", help="Plot the dendrogram")
     parser.add_argument("--calc_sd",  action="store_true", help="calculate standard div of the dist and prop for all level of clustering")
+    parser.add_argument("--project",  type=str,default='', help="Project configurations using Rect Dist Matrix file")
 
     args = parser.parse_args()
-    main(args.sim[0],args.nclust,mode=args.mode,proplist=args.prop,plot=args.plot,calc_sd=args.calc_sd)
+    main(args.sim[0],args.nclust,mode=args.mode,proplist=args.prop,plot=args.plot,calc_sd=args.calc_sd,rect_matrixfile=args.project)
 
