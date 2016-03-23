@@ -5,6 +5,8 @@ import sys
 import numpy as np
 import scipy.cluster.hierarchy as sc
 import itertools
+from scipy.stats import kurtosis
+from scipy.stats.mstats import kurtosistest
 from os.path import basename
 try:
   from matplotlib import pyplot as plt
@@ -34,12 +36,16 @@ def main(distmatrixfile,nclust,mode='average',proplist='',plot=False,calc_sd=Fal
    clist=sc.fcluster(Z,nclust,criterion='maxclust')
    c_count=Counter(clist)
    print "Number of clusters", len(c_count)
-   print "nconfig     meand    variance   rep config"
+   print "nconfig     meand    variance   rep config Kurtosis-3 "
    rep_ind=[]
+   structurelist=[]
    for iclust in range(1,len(c_count)+1):  #calculate mean dissimilary and pick representative structure for each cluster
       indices = [i for i, x in enumerate(clist) if x == iclust] #indices for cluster i
+      structurelist.append(indices)
       sumd=0.0
       icount=0
+      kurt=0.0
+      if proplist!='': kurt= kurtosis(prop[indices],fisher=True)
       #calculate mean dissimilarity in each group
       for iconf in range(len(indices)):
          ind1=indices[iconf]
@@ -67,8 +73,11 @@ def main(distmatrixfile,nclust,mode='average',proplist='',plot=False,calc_sd=Fal
           iselect=ind1
       var=var/max(1,icount)  
       rep_ind.append(iselect)
-      print len(indices), meand , np.sqrt(var) , iselect
+      print len(indices), meand , np.sqrt(var) , iselect ,kurt
 #   print rep_ind
+   print "index of clusters"
+   for i in structurelist:
+      print "index=",i
    filename=basename(distmatrixfile)+'-cluster.index'
    f=open(filename,"w")
    f.write("groupid representative \n ")
