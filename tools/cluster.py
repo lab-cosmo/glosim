@@ -5,7 +5,7 @@ import sys
 import numpy as np
 import scipy.cluster.hierarchy as sc
 import itertools
-from scipy.stats import kurtosis
+from scipy.stats import kurtosis,skew
 from scipy.stats.mstats import kurtosistest
 from os.path import basename
 try:
@@ -36,7 +36,7 @@ def main(distmatrixfile,dcut,mode='average',proplist='',plot=False,calc_sd=False
    clist=sc.fcluster(Z,nclust,criterion='maxclust')
    c_count=Counter(clist)
    print "Number of clusters", len(c_count)
-   print "nconfig     meand    variance   rep config Kurtosis-3 "
+   print "nconfig     meand    variance   rep_config  Kurtosis skewness  Multimodal "
    rep_ind=[]
    structurelist=[]
    for iclust in range(1,len(c_count)+1):  #calculate mean dissimilary and pick representative structure for each cluster
@@ -45,7 +45,14 @@ def main(distmatrixfile,dcut,mode='average',proplist='',plot=False,calc_sd=False
       structurelist.append(indices)
       sumd=0.0
       kurt=0.0
-      if proplist!='': kurt= kurtosis(prop[indices],fisher=True)
+      skewness=0.0
+      multimodal=False
+      if proplist!='' and len(indices)>1 :
+            kurt= kurtosis(prop[indices],fisher=False)
+            skewness=skew(prop[indices])
+            modc=(skewness*skewness+1)/kurt
+            if modc >(5.0/9.0) :
+               multimodal=True
       #calculate mean dissimilarity in each group
       for iconf in range(len(indices)):
          ind1=indices[iconf]
@@ -70,7 +77,7 @@ def main(distmatrixfile,dcut,mode='average',proplist='',plot=False,calc_sd=False
           iselect=ind1
       var=var/nconf  
       rep_ind.append(iselect)
-      print nconf, meand , np.sqrt(var) , iselect ,kurt
+      print nconf, meand , np.sqrt(var) , iselect ,kurt, skewness, multimodal
 #   print rep_ind
    print "index of clusters"
    for i in structurelist:
