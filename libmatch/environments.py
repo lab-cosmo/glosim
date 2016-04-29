@@ -90,7 +90,7 @@ class environ:
    def normalize(self):       
       nrm = np.sqrt( envk(self, self, self.alchem) )
       for sij in self.soaps:  self.soaps[sij]*=1.0/nrm
-   
+   # @profile
    def convert(self, specie, species, rawsoap):      
       self.z = specie
       self.zspecies = sorted(species)
@@ -135,6 +135,7 @@ class environ:
       self.normalize()
       
 # SOAP kernel between environments (with possibly alchemical similarity matrix)
+# @profile
 def envk(envA, envB, alchem=alchemy()):
    dotp = 0.0
    

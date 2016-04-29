@@ -25,7 +25,7 @@ def flush(stream):
     os.fsync(stream)
    
 
-def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanenteps, reggamma, nocenter, noatom, nprocs, verbose=False, envij=None, usekit=False, kit="auto", alchemyrules="none",prefix="",nlandmark=0, printsim=False,ref_xyz="",partialsim=False,lowmem=False,restartflag=False):
+def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanenteps, reggamma, nocenter, envsim, noatom, nprocs, verbose=False, envij=None, usekit=False, kit="auto", alchemyrules="none",prefix="",nlandmark=0, printsim=False,ref_xyz="",partialsim=False,lowmem=False,restartflag=False):
     start_time = datetime.now()
     print >>sys.stderr, "          TIME:  ", ctime() ;
     print >>sys.stderr, "        ___  __    _____  ___  ____  __  __ ";
@@ -51,7 +51,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
     if prefix=="": prefix=filename
     if prefix.endswith('.xyz'): prefix=prefix[:-4]
 
-    # reads input file using quippy
+    # Reads input file using quippy
     print >> sys.stderr, "Reading input file", filename
     al = quippy.AtomsList(filename);
     print >> sys.stderr, len(al.n) , " Configurations Read"
@@ -66,7 +66,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
     else:
       print >> sys.stderr, "Computing SOAPs"
 
-    # sets alchemical matrix
+    # Sets alchemical matrix
     if (alchemyrules=="none"):
        alchem = alchemy(mu=mu)
     else:
@@ -84,19 +84,30 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
     if verbose:
         qlog=quippy.AtomsWriter("log.xyz")
         slog=open("log.soap", "w")
-      
-    # determines reference kit    
+
+    # set flag for the envsim mode    
+    fl_envsim = 0
+    if np.sum(envsim)!=0:
+      fl_envsim = 1
+      nocenter = range(1,119) # generating the list of all atoms to ignore from SOAP algo
+      nocenter.remove(envsim)
+
+    # Determines reference kit     
     if usekit:
         if kit == "auto": 
             kit = {} 
             iframe=0
+            # al is the structure containing all frames info 
             for at in al:
                 if envij == None or iframe in envij: 
                     sp = {} 
-                    for z in at.z:     
+                    for z in at.z:
+                        # noatom corresponds to excluded atoms     
                         if z in noatom or z in nocenter: continue  
                         if z in sp: sp[z]+=1
-                        else: sp[z] = 1
+                        else: 
+                          sp[z] = 1
+                    # select the composition of the largest molecule from the frames      
                     for s in sp:
                         if not s in kit:
                             kit[s]=sp[s]
@@ -129,6 +140,13 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
     iframe=0 
     icount=0
     nrm = np.zeros(nf,float)
+    
+    # get the number of selected atoms and initialize the output matrix .env.sim
+    if fl_envsim: # works only for one atom
+      nenv = kit[envsim]
+      simenv=np.zeros((nenv*nf,nenv*nf))
+      print nenv
+
     for at in al:
         if envij == None or iframe in envij:
             if verbose: qlog.write(at)
@@ -162,7 +180,10 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
                             slog.write("\n")
             else:
                fii = None
-            sii = structk(si, si, alchem, periodic, mode=kmode, fout=fii, peps=permanenteps, gamma=reggamma)        
+            sii,senvii = structk(si, si, alchem, periodic, mode=kmode, fout=fii, peps=permanenteps, gamma=reggamma)        
+             
+            if fl_envsim:
+              simenv[icount*nenv:icount*nenv+nenv,icount*nenv:icount*nenv+nenv]=senvii
             nrm[icount]=sii     
             icount +=1    
         iframe +=1; 
@@ -245,7 +266,9 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
                                 for sj in s:
                                     slogref.write("%8.4e " %(sj))
                                 slogref.write("\n")
-                sii = structk(si, si, alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma)        
+                sii,senvii = structk(si, si, alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma)        
+                if fl_envsim:
+                      simenv[iframe*nenv:iframe*nenv+nenv,iframe*nenv:iframe*nenv+nenv]=senvii
                 nrm_ref[iframe]=sii        
                 iframe +=1;
 
@@ -269,7 +292,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
            sys.stderr.write("Matrix row %d                           \r" % (iframe))
            sli=sl[iframe]
            for jframe in range(nf_ref):
-             sij = structk(sli, sl_ref[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma)
+             sij,senvij = structk(sli, sl_ref[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma)
              sim[iframe][jframe]=sij/np.sqrt(nrm[iframe]*nrm_ref[jframe])
          if(partialsim):
               for x in sim[iframe,:]:
@@ -281,7 +304,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
               sli=sl[iframe]  
               def dorow(irow,nf_ref,nprocs,iproc, psim):
                 for jframe in range(iproc,nf_ref,nprocs):
-                    sij = structk(sli, sl_ref[jframe], alchem, periodic, mode=kmode,fout=None, peps = permanenteps, gamma=reggamma)
+                    sij,senvij = structk(sli, sl_ref[jframe], alchem, periodic, mode=kmode,fout=None, peps = permanenteps, gamma=reggamma)
                     psim[jframe]=sij/np.sqrt(nrm[irow]*nrm_ref[jframe])
               proclist = []
               psim = Array('d', nf_ref, lock=False)
@@ -413,7 +436,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
             landmarks.append(iframe)
             sli=sl[iframe]
             for jframe in range(nf):            
-                sij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, fout=None,peps = permanenteps, gamma=reggamma)
+                sij,senvij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, fout=None,peps = permanenteps, gamma=reggamma)
                 sij/=np.sqrt(nrm[iframe]*nrm[jframe])
                 sim_rect[iland][jframe]=sij
                 dist_list[jframe] = np.sqrt(max(0,2-2*sij)) # use kernel metric
@@ -450,7 +473,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
             sli = sl[iframe]
             if (nprocs<=1):
               for jframe in range(nf):                
-                sij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma)
+                sij,senvij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma)
                 # normalize the kernel
                 sij/=np.sqrt(nrm[iframe]*nrm[jframe])
                 sim_rect[iland][jframe]=sij
@@ -465,7 +488,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
 		      # multiple processors
               def docol(pdist, psim, iframe, nf, nproc, iproc):
                   for jframe in range(iproc, nf, nproc):                                
-                     sij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma)
+                     sij,senvij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma)
                      sij/=np.sqrt(nrm[iframe]*nrm[jframe])                
                      psim[jframe]=sij
                      dij= np.sqrt(max(0,2-2*sij))
@@ -562,6 +585,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
             
     else:  # standard case (one input, compute everything
         sim=np.zeros((nf,nf))
+        
         if (partialsim): 
           pfkernel=open(prefix+".k.partial","w")
           pfkernel.write("# Kernel matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)) )
@@ -579,8 +603,11 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
                         fij = open(prefix+".environ-"+str(iframe)+"-"+str(jframe)+".dat", "w")
                     else: fij = None
                     # if periodic: sys.stderr.write("comparing %3d, atoms cell with  %3d atoms cell: lcm: %3d \r" % (sl[iframe].nenv, sl[jframe].nenv, lcm(sl[iframe].nenv,sl[jframe].nenv))) 
-                    sij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, fout=fij, peps = permanenteps, gamma=reggamma)          
+                    sij,senvij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, fout=fij, peps = permanenteps, gamma=reggamma)          
                     sim[iframe][jframe]=sim[jframe][iframe]=sij/np.sqrt(nrm[iframe]*nrm[jframe])
+                    if fl_envsim:
+                      simenv[iframe*nenv:iframe*nenv+nenv,jframe*nenv:jframe*nenv+nenv]=senvij
+                      simenv[jframe*nenv:jframe*nenv+nenv,iframe*nenv:iframe*nenv+nenv]=senvij
                 sys.stderr.write("Matrix row %d                           \r" % (iframe))
                 if(partialsim):
                   for x in sim[iframe,0:iframe]:
@@ -593,7 +620,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
               sli=sl[iframe] 
               def dorow(irow,nf,nprocs,iproc, psim):
                 for jframe in range(iproc,nf,nprocs):
-                    sij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, peps = permanenteps, gamma=reggamma)          
+                    sij,senvij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, peps = permanenteps, gamma=reggamma)          
                     psim[jframe]=sij/np.sqrt(nrm[irow]*nrm[jframe])  
               proclist = []   
               psim = Array('d', nf, lock=False)      
@@ -647,7 +674,20 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
             for iframe in range(0,nf):
                 for x in sim[iframe][0:nf]:
                     fsim.write("%16.8e " % (np.sqrt(max(2-2*x,0))))
-                fsim.write("\n")  
+                fsim.write("\n") 
+
+        if fl_envsim:
+            fsimenv = open(prefix+".env.sim", "w")  
+            fsimenv.write("# Distance matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)) )
+            if (usekit):fsimenv.write( " Using reference kit: %s " % (str(kit)) )
+            if (alchemyrules!="none"):fsimenv.write( " Using alchemy rules: %s " % (alchemyrules) )
+            if (kmode=="regmatch"): fsimenv.write( " Regularized parameter: %f " % (reggamma) )
+            fsimenv.write("\n")
+            for iframe in range(0,nf*nenv):
+                for x in simenv[iframe][0:nf*nenv]:
+                    fsimenv.write("%16.8e " % (np.sqrt(max(2-2*x,0)))) # output distance matrix
+                fsimenv.write("\n")  
+            fsimenv.close()
     sys.stderr.write("\n ============= Glosim Ended Successfully ============== \n") 
     print >>sys.stderr, "          TIME:  ", ctime() ;
     end_time = datetime.now()
@@ -661,6 +701,7 @@ if __name__ == '__main__':
       parser.add_argument("--periodic", action="store_true", help="Matches structures with different atom numbers by replicating the environments")
       parser.add_argument("--exclude", type=str, default="", help="Comma-separated list of atom Z to be removed from the input structures (e.g. --exclude 96,101)")
       parser.add_argument("--nocenter", type=str, default="", help="Comma-separated list of atom Z to be ignored as environment centers (e.g. --nocenter 1,2,4)")
+      parser.add_argument("--envsim", type=int, default=0, help="Select the only species (ex: H->1, C->6,...) to perform the glosim algorithm on, i.e. coresponds to set all the other species in nocenter mode")
       parser.add_argument("--verbose",  action="store_true", help="Writes out diagnostics for the optimal match assignment of each pair of environments")   
       parser.add_argument("-n", type=int, default='8', help="Number of radial functions for the descriptor")
       parser.add_argument("-l", type=int, default='6', help="Maximum number of angular functions for the descriptor")
@@ -698,6 +739,7 @@ if __name__ == '__main__':
          nocenter = map(int,args.nocenter.split(','))   
             
       nocenter = sorted(list(set(nocenter+noatom)))
+
        
       if (args.verbose and args.np>1): raise ValueError("Cannot write out diagnostics when running parallel jobs") 
           
@@ -706,4 +748,4 @@ if __name__ == '__main__':
       else:
          envij=tuple(map(int,args.ij.split(",")))
                   
-      main(args.filename, nd=args.n, ld=args.l, coff=args.c, gs=args.g, mu=args.mu, centerweight=args.cw, periodic=args.periodic, usekit=args.usekit, kit=args.kit,alchemyrules=args.alchemy_rules, kmode=args.kernel, permanenteps=args.permanenteps, reggamma=args.gamma, noatom=noatom, nocenter=nocenter, nprocs=args.np, verbose=args.verbose, envij=envij, prefix=args.prefix, nlandmark=args.nlandmarks, printsim=args.distance,ref_xyz=args.refxyz,partialsim=args.livek,lowmem=args.lowmem,restartflag=args.restart)
+      main(args.filename, nd=args.n, ld=args.l, coff=args.c, gs=args.g, mu=args.mu, centerweight=args.cw, periodic=args.periodic, usekit=args.usekit, kit=args.kit,alchemyrules=args.alchemy_rules, kmode=args.kernel, permanenteps=args.permanenteps, reggamma=args.gamma, noatom=noatom, nocenter=nocenter, envsim=args.envsim, nprocs=args.np, verbose=args.verbose, envij=envij, prefix=args.prefix, nlandmark=args.nlandmarks, printsim=args.distance,ref_xyz=args.refxyz,partialsim=args.livek,lowmem=args.lowmem,restartflag=args.restart)
