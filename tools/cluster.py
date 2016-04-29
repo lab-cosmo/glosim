@@ -15,7 +15,7 @@ except:
 
 from collections import Counter
 
-def main(distmatrixfile,dcut,mode='average',proplist='',plot=False,calc_sd=False,rect_matrixfile=''):
+def main(distmatrixfile,dcut,mode='average',proplist='',plot=False,calc_sd=False,rect_matrixfile='',mtcia=False,verbose=False):
    project=False
    sim=np.loadtxt(distmatrixfile)
    if rect_matrixfile != '' :
@@ -27,9 +27,12 @@ def main(distmatrixfile,dcut,mode='average',proplist='',plot=False,calc_sd=False
    if proplist!='': prop=np.loadtxt(proplist)
    sim2=sim*sim
    Z=sc.linkage(sim2,mode)
+   if mtcia : mathematica_cluster(Z,sim)
    n=len(sim)
-   cdist=Z[:,2] 
-   np.savetxt('dist.dat',cdist)
+   cdist=Z[:,2]
+   if verbose : 
+     np.savetxt('linkage.dat',Z)
+     np.savetxt('dist.dat',cdist)
    nclust=estimate_ncluster(cdist,dcut)
    print "Estimated ncluster:",nclust
    print "mean+std, cutoffdist", np.sqrt(np.var(Z[:,2]))+np.mean(Z[:,2]),(Z[n-nclust,2])
@@ -108,7 +111,7 @@ def main(distmatrixfile,dcut,mode='average',proplist='',plot=False,calc_sd=False
      f.write("representative config")
      f.write("\n")
      sim_sd,rep_index=dissimilarity_sd(Z,sim2) 
-     if proplist!='': psd=prop_sd(Z,prop)
+     if proplist!='': psd=prop_sd(Z,prop,verbose)
      for i in range(len(Z)):
          f.write("%f" %(sim_sd[i]))
          if proplist!='':f.write("   %f" %(psd[i]))
@@ -173,7 +176,51 @@ def project_config(clusterlist,rect_matrix,rep_ind):
       iselect=np.argmin(rect_matrix[:,iconfig])               
       project_rep.append(iselect)
   return(groupid,project_rep)
-
+def mathematica_cluster(Z,sim):
+   n=len(sim)
+   clusterlist=[]
+   nlist=[]
+   for i in range(len(Z)):
+    id1=int(Z[i,0])
+    id2=int(Z[i,1])
+    if((id1 < n) and (id2<n)):  # when two configurations are merged note their index
+       #clusterlist.append('Cluster'+str([id1,id2,Z[i,2],1,1]))
+       clusterlist.append([id1,id2,Z[i,2],1,1])
+       nlist.append(2)
+       #ncluster+=1
+    else:
+      cl=[]
+      icount=0
+      if id1>=n:  # this means merging is happening with previously formed cluster
+        icluster=int(id1)-n
+   #     for x in clusterlist[icluster]: #we already have the list for the old cluster
+        cl.append(clusterlist[icluster])
+        n1=nlist[icluster]
+      else:
+        cl.append(id1)
+        n1=1
+      if id2>=n: # same logic as before
+        icluster=int(id2)-n
+       # for x in clusterlist[icluster]:
+        cl.append(clusterlist[icluster])
+        n2=nlist[icluster]
+      else:
+        cl.append(id2)
+        n2=1
+      cl.append(Z[i,2])
+      cl.append(n1)
+      cl.append(n2)
+   #   tmp='Cluster'+str(cl)
+   #   tmp.replace("'","")
+   #   clusterlist.append(tmp)
+      clusterlist.append(cl)
+      nlist.append(n1+n2)
+   f=open('cluster-mathematica.dat','w')
+#   clusterlist[n-2].replace("'","")
+#   clusterlist[n-2].replace("\\","")
+   f.write("%s" %str(clusterlist[n-2]))
+   f.close()
+   return  
 def dissimilarity_sd(Z,sim):
   n=len(sim)
   clusterlist=[]
@@ -262,11 +309,12 @@ def estimate_ncluster(dist,dcut):
   return nclust
 
 
-def prop_sd(Z,prop):
+def prop_sd(Z,prop,verbose):
   n=len(prop)
   clusterlist=[]
   ncluster=0
   sdlist=[]
+  if verbose : f=open('clusterlist.dat','w')
   for i in range(len(Z)):
     id1=int(Z[i,0])
     id2=int(Z[i,1])
@@ -292,6 +340,9 @@ def prop_sd(Z,prop):
     icount=0
 #   calculate variance and sd
     sd=np.std(prop[clusterlist[i]])
+    if verbose: 
+      f.write(" %s " %str(clusterlist[i]))
+      f.write("\n")
     sdlist.append(sd)
   return sdlist
 #    print len(clusterlist[i]),meand,var,sd,iselect,Z[i,2]
@@ -308,7 +359,9 @@ if __name__ == '__main__':
     parser.add_argument("--plot",  action="store_true", help="Plot the dendrogram")
     parser.add_argument("--calc_sd",  action="store_true", help="calculate standard div of the dist and prop for all level of clustering")
     parser.add_argument("--project",  type=str,default='', help="Project configurations using Rect Dist Matrix file")
+    parser.add_argument("--mathematica",  action="store_true", help="export the cluster object in Mathematica format")
+    parser.add_argument("--verbose",  action="store_true", help="increase output informations. write multiple files")
 
     args = parser.parse_args()
-    main(args.sim[0],args.dcut,mode=args.mode,proplist=args.prop,plot=args.plot,calc_sd=args.calc_sd,rect_matrixfile=args.project)
+    main(args.sim[0],args.dcut,mode=args.mode,proplist=args.prop,plot=args.plot,calc_sd=args.calc_sd,rect_matrixfile=args.project,mtcia=args.mathematica,verbose=args.verbose)
 
