@@ -140,7 +140,7 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
    if mode=="average":
        genvA=strucA.globenv
        genvB=strucB.globenv        
-       return envk(genvA, genvB, alchem)
+       return envk(genvA, genvB, alchem),0
 
    nenv = 0
    

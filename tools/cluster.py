@@ -53,7 +53,7 @@ def main(distmatrixfile,dcut,mode='average',proplist='',plot=False,calc_sd=False
       if proplist!='' and len(indices)>1 :
             kurt= kurtosis(prop[indices],fisher=False)
             skewness=skew(prop[indices])
-            modc=(skewness*skewness+1)/kurt
+            if kurt !=0 : modc=(skewness*skewness+1)/kurt
             if modc >(5.0/9.0) :
                multimodal=True
       #calculate mean dissimilarity in each group
