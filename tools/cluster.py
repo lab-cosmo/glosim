@@ -87,11 +87,11 @@ def main(distmatrixfile,dcut,mode='average',proplist='',plot=False,calc_sd=False
       print "index=",i
    filename=basename(distmatrixfile)+'-cluster.index'
    f=open(filename,"w")
-   f.write("groupid representative \n ")
+   f.write(" # groupid representative \n ")
    for i in range(len(sim)):
       iselect=0
       if i in rep_ind: iselect=2
-      f.write("%d   %d \n " %(clist[i],  iselect)) 
+      f.write("%d   %d \n " %(clist[i]-1,  iselect)) 
    f.close()
    if(project):
      project_groupid,project_rep=project_config(clist,rect_matrix,rep_ind)
@@ -101,7 +101,7 @@ def main(distmatrixfile,dcut,mode='average',proplist='',plot=False,calc_sd=False
      for i in range(len(project_groupid)):
         iselect=0
         if i in project_rep: iselect=2
-        f.write("%d   %d \n " %(project_groupid[i],  iselect)) 
+        f.write("%d   %d \n " %(project_groupid[i]-1,  iselect)) 
      f.close()
    if (calc_sd):
      filename= filename=basename(distmatrixfile)+'-cluster-sd.dat'
