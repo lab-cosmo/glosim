@@ -22,6 +22,12 @@ def main( kernel, trainvector, proplist,csi ):
        diff=abs(krp[:]-p[:])
        sup=max(diff)
        print "# test-set MAE: %f RMS: %f SUP %f" % (mae, rms, sup)
+       comment= "# test-set MAE: "+str(mae)+ " RMSE: "+ str(rms)+" SUP: " +str(sup)
+       fname=proplist+".predict"
+       f=open(fname,'w')
+       np.savetxt(f,krp,header=comment)
+       f.close()
+
 
 if __name__ == '__main__':
    main(*sys.argv[1:])
