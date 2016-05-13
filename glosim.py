@@ -607,7 +607,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
                     sim[iframe][jframe]=sim[jframe][iframe]=sij/np.sqrt(nrm[iframe]*nrm[jframe])
                     if fl_envsim:
                       simenv[iframe*nenv:iframe*nenv+nenv,jframe*nenv:jframe*nenv+nenv]=senvij
-                      simenv[jframe*nenv:jframe*nenv+nenv,iframe*nenv:iframe*nenv+nenv]=senvij
+                      simenv[jframe*nenv:jframe*nenv+nenv,iframe*nenv:iframe*nenv+nenv]=senvij.T
                 sys.stderr.write("Matrix row %d                           \r" % (iframe))
                 if(partialsim):
                   for x in sim[iframe,0:iframe]:
@@ -677,8 +677,9 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
                 fsim.write("\n") 
 
         if fl_envsim:
-            fsimenv = open(prefix+".env.sim", "w")  
-            fsimenv.write("# Distance matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)) )
+            atomicmap = {1:"H",2:"He",6:"C",7:"N",8:"O",9:"F"}
+            fsimenv = open(prefix+".env."+atomicmap[envsim]+"_"+str(nenv)+".sim", "w")  
+            fsimenv.write("# Environment Distance matrix for %s. species: %s Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, atomicmap[envsim], coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)) )
             if (usekit):fsimenv.write( " Using reference kit: %s " % (str(kit)) )
             if (alchemyrules!="none"):fsimenv.write( " Using alchemy rules: %s " % (alchemyrules) )
             if (kmode=="regmatch"): fsimenv.write( " Regularized parameter: %f " % (reggamma) )
