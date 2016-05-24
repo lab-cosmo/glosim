@@ -22,7 +22,8 @@ def getcorrofcluster(mols,cutoffdist,fnamexyz,clusterlist1,clusterlist2,ng1,ng2,
 	
 	# initialize correlation matrix 
 	corrmtx = np.zeros((ng1,ng2), dtype=int)  
-	
+	frame1 = np.zeros((ng1), dtype=int) 
+	frame2 = np.zeros((ng2), dtype=int) 
 	# give correlation data structured with specie of clusterlist1 
  	# as main element
  	corr1 = {x: [] for x in xrange(ng1)}
@@ -55,23 +56,22 @@ def getcorrofcluster(mols,cutoffdist,fnamexyz,clusterlist1,clusterlist2,ng1,ng2,
 	 		r1[0] = mol[clusterlist1[iframe][atm1][2]].x
 	 		r1[1] = mol[clusterlist1[iframe][atm1][2]].y
 	 		r1[2] = mol[clusterlist1[iframe][atm1][2]].z
-	 		# print r1
-	 		# print 'Frame : ', iframe, ' and atm : ', atm1
+	 		
 	 		for atm2 in xrange(nspiecies2[iframe]):
 	 			# position of the atom from clusterlist2
-	 			# print nspiecies1[iframe]
-	 			# print clusterlist2[iframe]
-	 			# print clusterlist2[iframe][atm2]
-	 			# print clusterlist2[iframe][atm2][2]
 	 			r2[0] = mol[clusterlist2[iframe][atm2][2]].x
 	 			r2[1] = mol[clusterlist2[iframe][atm2][2]].y
 	 			r2[2] = mol[clusterlist2[iframe][atm2][2]].z
 	 			
+	 			frame1[clusterlist1[iframe][atm1][0]] = clusterlist1[iframe][atm1][1]
+	 			frame2[clusterlist2[iframe][atm2][0]] = clusterlist2[iframe][atm2][1]
+
 	 			dist = np.linalg.norm(r1-r2)
 	 			# if atom is within cutoff distance then update correlation matrix
 	 			if dist < cutoffdist: 
 	 				corrmtx[clusterlist1[iframe][atm1][0],clusterlist2[iframe][atm2][0]] += 1 
 	 				corr1[clusterlist1[iframe][atm1][0]][atmcount[clusterlist1[iframe][atm1][0]]][2][zenv2][clusterlist2[iframe][atm2][0]].append(clusterlist2[iframe][atm2][2])
+	 				
 	 				# Print xyz of selected group
 					if len(selectgroupxyz2print) > 0 :
 						if 	(int(clusterlist1[iframe][atm1][0]) == selectgroupxyz2print[0] and int(clusterlist2[iframe][atm2][0]) == selectgroupxyz2print[1]):
@@ -106,7 +106,7 @@ def getcorrofcluster(mols,cutoffdist,fnamexyz,clusterlist1,clusterlist2,ng1,ng2,
 	# 	print corr1[0][i][2][zenv2]
 	# print corrmtx 
 	# print arr
-	return corrmtx, corr1 
+	return corrmtx, corr1, frame1, frame2
 
 def rmdummyfromsim(fnamexyz,distmatrix,zenv,nenv):
 	# zenv is atomic nb of env and nenv is the number of 
@@ -183,6 +183,32 @@ def linkgroup2atmidx(mols,clist,zenv,nenv):
 
 	return clusterlist, nspecies 
 
+def clusterdistmatfull(distmatrixfile,sim,mode='average',plot=False):
+	# Compute the clusturing on dist^2 so that the average 
+	# distance of a cluster with an other is the RMS distance
+	sim2 = sim*sim
+	Z = sc.linkage(sim2,mode)
+
+	# get the full tree
+	plt.figure(figsize=(10, 15))
+	plt.title('Hierarchical Clustering Dendrogram')
+	plt.xlabel('sample index')
+	plt.ylabel('distance')
+	dendo = sc.dendrogram(Z,orientation='right',leaf_rotation=90.,leaf_font_size=20.,show_contracted=False)
+	c_list = np.array(dendo['leaves'])
+
+	c_count = Counter(c_list)
+	nbclst = len(c_count)
+
+	print "Number of clusters", nbclst 
+	
+	# c_list = np.zeros(len(sim))
+
+	# # Change cluster groups numbering to (0:n-1)
+	# for i in range(len(sim)):
+	# 	c_list[i] = int(clist[i]-1)
+
+	return c_list,Z
 
 def clusterdistmat(distmatrixfile,sim,dcut,mode='average',plot=False):
 	# Compute the clusturing on dist^2 so that the average 
@@ -191,7 +217,9 @@ def clusterdistmat(distmatrixfile,sim,dcut,mode='average',plot=False):
 	Z = sc.linkage(sim2,mode)
 
 	cdist = Z[:,2]
-
+	# get the full tree
+	# dendo = sc.dendrogram(Z)
+	# clist = dendo['leaves']
    	nclust = cluster.estimate_ncluster(cdist,dcut)
 
 	clist = sc.fcluster(Z,nclust,criterion='maxclust')
@@ -222,7 +250,7 @@ def clusterdistmat(distmatrixfile,sim,dcut,mode='average',plot=False):
 	for i in range(len(sim)):
 		c_list[i] = int(clist[i]-1)
 
-	return c_list
+	return c_list,Z
 
 # Determine the representative element of each cluster group
 def getrep_ind(sim2,clist,c_count):

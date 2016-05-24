@@ -27,7 +27,7 @@ def main(distmatrixfile,dcut,mode='average',proplist='',plot=False,calc_sd=False
    if proplist!='': prop=np.loadtxt(proplist)
    sim2=sim*sim
    Z=sc.linkage(sim2,mode)
-   if mtcia : mathematica_cluster(Z,sim)
+   if mtcia : mathematica_cluster(Z,sim,'cluster-mathematica.dat')
    n=len(sim)
    cdist=Z[:,2]
    if verbose : 
@@ -176,7 +176,8 @@ def project_config(clusterlist,rect_matrix,rep_ind):
       iselect=np.argmin(rect_matrix[:,iconfig])               
       project_rep.append(iselect)
   return(groupid,project_rep)
-def mathematica_cluster(Z,sim):
+
+def mathematica_cluster(Z,sim,fname):
    n=len(sim)
    clusterlist=[]
    nlist=[]
@@ -184,8 +185,8 @@ def mathematica_cluster(Z,sim):
     id1=int(Z[i,0])
     id2=int(Z[i,1])
     if((id1 < n) and (id2<n)):  # when two configurations are merged note their index
-       #clusterlist.append('Cluster'+str([id1,id2,Z[i,2],1,1]))
-       clusterlist.append([id1,id2,Z[i,2],1,1])
+       # in mathematica cluster index should start from 1 so '+1'
+       clusterlist.append([int(id1+1),int(id2+1),'{:.8f}'.format(Z[i,2]),1,1])
        nlist.append(2)
        #ncluster+=1
     else:
@@ -197,7 +198,7 @@ def mathematica_cluster(Z,sim):
         cl.append(clusterlist[icluster])
         n1=nlist[icluster]
       else:
-        cl.append(id1)
+        cl.append(id1+1)
         n1=1
       if id2>=n: # same logic as before
         icluster=int(id2)-n
@@ -205,9 +206,9 @@ def mathematica_cluster(Z,sim):
         cl.append(clusterlist[icluster])
         n2=nlist[icluster]
       else:
-        cl.append(id2)
+        cl.append(id2+1)
         n2=1
-      cl.append(Z[i,2])
+      cl.append('{:.8f}'.format(Z[i,2]))
       cl.append(n1)
       cl.append(n2)
    #   tmp='Cluster'+str(cl)
@@ -215,12 +216,20 @@ def mathematica_cluster(Z,sim):
    #   clusterlist.append(tmp)
       clusterlist.append(cl)
       nlist.append(n1+n2)
-   f=open('cluster-mathematica.dat','w')
-#   clusterlist[n-2].replace("'","")
-#   clusterlist[n-2].replace("\\","")
-   f.write("%s" %str(clusterlist[n-2]))
-   f.close()
-   return  
+   
+   # get the final nested cluster structure and put
+   # the mathematica Cluster statement
+   clusterliststr = str(clusterlist[n-2])
+   clusterliststr = clusterliststr.replace("[","Cluster[")
+   clusterliststr = clusterliststr.replace("'","")
+   # print a.replace("[","Cluster[")
+   fmathematica=open(fname,'w')
+   fmathematica.write(clusterliststr)
+   fmathematica.close()
+
+   return
+
+
 def dissimilarity_sd(Z,sim):
   n=len(sim)
   clusterlist=[]
@@ -283,7 +292,7 @@ def dissimilarity_sd(Z,sim):
 
 def estimate_ncluster(dist,dcut):
   n=len(dist)
-  if dcut>0.0 : 
+  if dcut>=0.0 : 
     for i in range(n):
       if dist[i]>dcut : 
           nclust=n-i

@@ -4,6 +4,7 @@ import numpy as np
 import quippy
 import sys
 import argparse
+from scipy.cluster import hierarchy as sc
 import matplotlib.pyplot as plt
 
 def main(fnamexyz, cutoffdist, fnamesim, zenv, nenv, dcut, selectgroupxyz2print=[], dcutisgood=False, isploting=False ):
@@ -14,10 +15,16 @@ def main(fnamexyz, cutoffdist, fnamesim, zenv, nenv, dcut, selectgroupxyz2print=
 	# Generate the file name for the new dist matrices that are without dummy atoms
 	nsim = len(nenv)
 	fname = []
+	fnamecorr = []
+	fnamemathematica = []
 	cnt = 0
 	for fn in fnamesim:
 		target = '_'+str(nenv[cnt])
-		fname.append(fn[:fn.find(target)])
+		fname.append(fn[:fn.find(target)]+'.sim')
+		fnamecorr.append(fn[:fn.find(target)]+'.corrmt')
+		fnamemathematica.append(fn[:fn.find(target)]+'.mathematica-cluster.dat')
+		cnt+=1
+		print (fn[:fn.find(target)])
 	
 	print >> sys.stderr, "Reading input file", fnamexyz
 	mols = quippy.AtomsList(fnamexyz);
@@ -28,27 +35,43 @@ def main(fnamexyz, cutoffdist, fnamesim, zenv, nenv, dcut, selectgroupxyz2print=
 	nbclst = []
 	clusterlist = []
 	nspiecies = []
+	Z = []
+	dendo = []
 
 	for it in range(nsim):
 		print '############'
 		print "Read distance matrix "+ fnamesim[it] + " with dummy atoms"
 		olddistmatrix = np.loadtxt(fnamesim[it])
+		
+		fsim = open(fnamesim[it],'r')
+		head = fsim.readline()
+		head = head.strip('#');head = head.strip('\n')
+		# print '##########' , head
+		fsim.close()
 
 		# Removes dummy atoms rows/columns from distance matrix
-		newdistmatrix, dummylist = env_corr.rmdummyfromsim(fnamexyz,olddistmatrix,zenv[it],nenv[it])
-		print len(newdistmatrix),' Real ',zenv[it],' atom '
+		newdistmatrix1, dummylist = env_corr.rmdummyfromsim(fnamexyz,olddistmatrix,zenv[it],nenv[it])
+		print len(newdistmatrix1),' Real ',zenv[it],' atom '
 		print 'Removes : ', len(dummylist),' rows/colomns from distmatrix'
-		print newdistmatrix.shape
+		print newdistmatrix1.shape
 		
+		# Write the distmatrix without dummy atoms
+		np.savetxt(fname[it],newdistmatrix1, header=head )
+
 		# get list of the cluster groups idx (same order as in dist mat) 
-		clist1 = env_corr.clusterdistmat(fname[it],newdistmatrix,dcut[it],mode='average',plot=plotdendo)
-		
+		clist1,Z1 = env_corr.clusterdistmat(fname[it],newdistmatrix1,0.,mode='average',plot=plotdendo)
+		dendo1 = sc.dendrogram(Z1)
+		# Write mathematica cluster structure
+		cluster.mathematica_cluster(Z1, newdistmatrix1,fnamemathematica[it])
+
 		# get nb of cluster groups
 		nbclst1 = len(np.unique(clist1))
 		# print a==nbclst1
-		distmatrix.append(newdistmatrix)
+		distmatrix.append(newdistmatrix1)
 		clist.append(clist1)
 		nbclst.append(nbclst1)
+		Z.append(Z1)
+		dendo.append(dendo1)
 
 		# Link the cluster groups with atom's frame and respective position in it
 		if dcutisgood:
@@ -68,12 +91,27 @@ def main(fnamexyz, cutoffdist, fnamesim, zenv, nenv, dcut, selectgroupxyz2print=
 				for i in range(1,nsim+1):
 					selectgroupxyz2print.append([]) 
 			
-			corrmtx1, corr1  = env_corr.getcorrofcluster(mols,cutoffdist,fnamexyz,clusterlist[0],clusterlist[it],nbclst[0],nbclst[it],zenv[0],zenv[it],nspiecies[0],nspiecies[it],selectgroupxyz2print[it-1])
-			corrmtx.append(corrmtx1)
+			corrmtx1, corr1,idx1, idx2  = env_corr.getcorrofcluster(mols,cutoffdist,fnamexyz,clusterlist[0],clusterlist[it],nbclst[0],nbclst[it],zenv[0],zenv[it],nspiecies[0],nspiecies[it],selectgroupxyz2print[it-1])
+			
+			# idx1 = dendo[0]['leaves']
+			# idx2 = dendo[it]['leaves']
+			print len(idx1),len(idx2)
+			print corrmtx1.shape
+			# corrmtx1 = corrmtx1[idx1,:]
+			# corrmtx1 = corrmtx1[:,idx2]
 
+			corrmtx.append(corrmtx1)
+			head1 = 'From '+fnamexyz+'  Correlation matrix between environment of atom '+str(zenv[0])+' and '+str(zenv[it])
 			print '############'
-			print 'Correlation matrix between atom ',zenv[0],' and ',zenv[it]
-			print corrmtx1
+			print head1
+			head2 = 'From '+fnamexyz+'  Dendogram ordering of atom '+str(zenv[0])
+			head3 = 'From '+fnamexyz+'  Dendogram ordering of atom '+str(zenv[it])
+
+			np.savetxt(fnamecorr[it], corrmtx1, header=head1 )
+			np.savetxt(fnamecorr[it]+str(zenv[0]), idx1, header=head2 )
+			np.savetxt(fnamecorr[it]+str(zenv[it]), idx2, header=head3 )
+
+			# print corrmtx1
 
 	if pyplot:
 		plt.show()
