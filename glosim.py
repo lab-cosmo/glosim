@@ -319,6 +319,8 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
                 sys.stderr.write("Matrix row %d, %d active processes     \r" % (iframe, len(proclist)))
               for ip in proclist:
                    while ip.is_alive(): ip.join(0.1)
+                   if ip.exitcode != 0 :
+                     raise ValueError("Invalid exit status for one of the child processes!")
               for jframe in range(0,nf_ref):
                     sim[iframe,jframe]=psim[jframe]
               if(partialsim):
@@ -514,6 +516,8 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
                  # waits for all threads to finish
               for ip in proclist:
                  while ip.is_alive(): ip.join(0.1)  
+                 if ip.exitcode != 0 :
+                     raise ValueError("Invalid exit status for one of the child processes!")
          
                 # copies from the shared memory array to Sim.
               for jframe in range(nf):
@@ -636,6 +640,8 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
                 sys.stderr.write("Matrix row %d, %d active processes     \r" % (iframe, len(proclist)))
               for ip in proclist:
                    while ip.is_alive(): ip.join(0.1)  
+                   if ip.exitcode != 0 :
+                     raise ValueError("Invalid exit status for one of the child processes!")
               for jframe in range(0,iframe):
                     sim[iframe,jframe]=sim[jframe,iframe]=psim[jframe]
               if(partialsim):
