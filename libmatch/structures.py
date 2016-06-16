@@ -7,7 +7,10 @@
 # atom number and kinds, and sports the infrastructure for introducing an
 # alchemical similarity kernel to match different atomic species
 
-import sys, os, pickle
+# import sys, os, pickle
+import sys, os
+import cPickle as pickle
+import gc 
 from lap.lap import best_pairs, best_cost, lcm_best_cost
 from lap.perm import xperm, mcperm, regmatch
 import numpy as np
@@ -77,7 +80,7 @@ class structure:
          
          # first computes the descriptors of species that are present
          desc = quippy.descriptors.Descriptor("soap central_weight="+str(cw)+"  covariance_sigma0=0.0 atom_sigma="+str(gs)+" cutoff="+str(coff)+" n_max="+str(nmax)+" l_max="+str(lmax)+' '+lspecies+' Z='+str(sp) )   
-         psp=np.asarray(desc.calc(at,desc.dimensions(),self.species[sp])).T;
+         psp =np.asarray(desc.calc(at,desc.dimensions(),self.species[sp])).T;
       
          # now repartitions soaps in environment descriptors
          lenv = []
@@ -137,7 +140,7 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
    if mode=="average":
        genvA=strucA.globenv
        genvB=strucB.globenv        
-       return envk(genvA, genvB, alchem)
+       return envk(genvA, genvB, alchem),0
 
    nenv = 0
    
@@ -241,7 +244,7 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
    else: raise ValueError("Unknown global fingerprint mode ", mode)
    
          
-   return cost
+   return cost,kk
 
 
 class structurelist(list):
@@ -255,22 +258,28 @@ class structurelist(list):
         # return true if the file associated with index exists, false otherwise
         f=self.basedir+'/sl_'+str(index)+'.dat'
         return os.path.isfile(f)
- 
+    # @profile
     def append(self, element):
         #pickle the element for later use
         ind=self.count
         f=self.basedir+'/sl_'+str(ind)+'.dat'
-        file=open(f,"w")
-        pickle.dump(element, file,protocol=2)
+        file = open(f,"wb")
+        gc.disable()
+        pickle.dump(element, file,protocol=pickle.HIGHEST_PROTOCOL) # HIGHEST_PROTOCOL is 2 in py 2.7
         file.close()
+        gc.enable()
         self.count+=1
 
+        
+    # @profile
     def __getitem__(self, index):
-        f=self.basedir+'/sl_'+str(index)+'.dat'
+        f = self.basedir+'/sl_'+str(index)+'.dat'
         try:
-            file=open(f,"r")
+            file = open(f,"rb")
         except IOError:
             raise IOError("Cannot load descriptors for index %d" % (index) )
-        l=pickle.load(file)
+        gc.disable()
+        l = pickle.load(file)
         file.close()
+        gc.enable()
         return l

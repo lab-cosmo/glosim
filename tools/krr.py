@@ -122,11 +122,16 @@ def main(kernel, props, mode, trainfrac, csi, sigma, ntests, ttest,savevector=Fa
                 tk[i,i]+=sigma #/ lweight[i]  # diagonal regularization times weight!
             tc = np.linalg.solve(tk, tp)
             krp = np.dot(kij[:,:],tc)
-
             mae=abs(krp[:]-p[:]).sum()/len(p)
             rms=np.sqrt(((krp[:]-p[:])**2).sum()/len(p))
             sup=abs(krp[:]-p[:]).max()
             print "# train-set MAE: %f RMS: %f SUP: %f" % (mae, rms, sup)
+            if savevector :
+               comment= "# train-set MAE: "+str(mae)+ " RMSE: "+ str(rms)+" SUP: " +str(sup)
+               fname=props+".predict"
+               f=open(fname,'w')
+               np.savetxt(f,krp,header=comment)
+               f.close()
     else: 
         np.set_printoptions(threshold=10000)
         ntrain = int(trainfrac*nel)

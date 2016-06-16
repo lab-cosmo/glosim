@@ -23,7 +23,7 @@ def best_pairs(matrix):
 def best_cost(matrix):
   hun=linear_assignment(matrix)
   cost=0.0
-  print hun
+  #print hun
   for pair in hun:
      cost+=matrix[pair[0],pair[1]]
   return cost
