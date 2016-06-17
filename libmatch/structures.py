@@ -80,9 +80,12 @@ class structure:
          
          # first computes the descriptors of species that are present
          desc = quippy.descriptors.Descriptor("soap central_weight="+str(cw)+"  covariance_sigma0=0.0 atom_sigma="+str(gs)+" cutoff="+str(coff)+" n_max="+str(nmax)+" l_max="+str(lmax)+' '+lspecies+' Z='+str(sp) )   
-         psp = quippy.fzeros((desc.dimensions(),desc.descriptor_sizes(at)[0]))
-         desc.calc(at,descriptor_out=psp)
-         psp = np.array(psp.T)
+         try:
+            psp =np.asarray(desc.calc(at,desc.dimensions(),self.species[sp])).T
+         except TypeError:
+            psp = quippy.fzeros((desc.dimensions(),desc.descriptor_sizes(at)[0]))
+            desc.calc(at,descriptor_out=psp)
+            psp = np.array(psp.T)
 
          # now repartitions soaps in environment descriptors
          lenv = []
