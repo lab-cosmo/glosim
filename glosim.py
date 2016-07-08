@@ -1,4 +1,5 @@
-#!/usr/bin/env python
+#!/u/dem/ceriottm/local/bin/python
+#/usr/bin/env python
 # Computes the matrix of similarities between structures in a xyz file
 # by first getting SOAP descriptors for all environments, finding the best
 # match between environments using the Hungarian algorithm, and finally
@@ -19,6 +20,9 @@ import numpy as np
 from copy import copy 
 from time import ctime
 from datetime import datetime
+import gc
+import cPickle as pickle
+
 # tries really hard to flush any buffer to disk!
 def flush(stream):
     stream.flush()
@@ -69,6 +73,17 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
     # Sets alchemical matrix
     if (alchemyrules=="none"):
        alchem = alchemy(mu=mu)
+    elif (alchemyrules=="read"):
+       try:
+            file = open("alchemy.pickle","rb")
+       except IOError:
+            raise IOError("alchemy.pickle file is not present")
+       gc.disable()
+       r=pickle.load(file)
+       file.close()
+       gc.enable()
+       print >> sys.stderr, "Using Alchemy rules: ", r,"\n"
+       alchem = alchemy(mu=mu,rules=r)
     else:
        r=alchemyrules.replace('"', '').strip()
        r=alchemyrules.replace("'", '').strip()
