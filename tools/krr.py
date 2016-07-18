@@ -1,4 +1,5 @@
-#!/usr/bin/python
+#!/u/dem/ceriottm/local/bin/python
+#/usr/bin/python
 
 # compute kernel ridge regression for a data set given a kernel matrix
 # and a vector of the observed properties. syntax:
