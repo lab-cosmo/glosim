@@ -87,9 +87,10 @@ class environ:
         
       self.natoms += nenv.natoms            
 
-   def normalize(self):       
+   def normalize(self):
       nrm = np.sqrt( envk(self, self, self.alchem) )
       for sij in self.soaps:  self.soaps[sij]*=1.0/nrm
+      
    # @profile
    def convert(self, specie, species, rawsoap):      
       self.z = specie

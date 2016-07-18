@@ -12,7 +12,7 @@ import sys, os
 import cPickle as pickle
 import gc 
 from lap.lap import best_pairs, best_cost, lcm_best_cost
-from lap.perm import xperm, mcperm, regmatch
+from lap.perm import xperm, mcperm, rematch
 import numpy as np
 from environments import environ, alchemy, envk
 import quippy
@@ -112,7 +112,9 @@ class structure:
       for k, se in self.env.items():
          for e in se:
             self.globenv.add(e)
-      self.globenv.normalize()
+      # divides by the number of atoms in the structure
+      for sij in self.globenv.soaps:  self.globenv.soaps[sij]*=1.0/self.nenv
+      # self.globenv.normalize()  #if needed, normalization will be done later on.....
       
 
 def gcd(a,b):
@@ -140,7 +142,27 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
    if mode=="average":
        genvA=strucA.globenv
        genvB=strucB.globenv        
-       return envk(genvA, genvB, alchem),0
+       return envk(genvA, genvB, alchem), 0
+   elif mode=="species": 
+       # for now, only implement standard Kronecker alchemy
+       senvB = environ(strucB.nmax, strucB.lmax, strucB.alchem)
+       kk = 0
+       for za in strucA.zspecies:    
+         if not za in strucB.zspecies: continue         
+         senvA = environ(strucA.nmax, strucA.lmax, strucA.alchem)
+         for ia in xrange(strucA.getnz(za)):
+            senvA.add(strucA.getenv(za, ia))
+         senvB = environ(strucB.nmax, strucB.lmax, strucB.alchem)   
+         for ib in xrange(strucB.getnz(za)):
+            senvB.add(strucB.getenv(za, ib))
+         kk += envk(senvA, senvB, alchem)
+       
+       kk/=strucA.nenv*strucB.nenv
+       return kk,0
+         
+       #  for zb, nzb in nspeciesB:
+       #         for ib in xrange(nzb):
+       #            return envk(genvA, genvB, alchem), 0
 
    nenv = 0
    
@@ -183,7 +205,9 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
                    # includes a penalty dependent on "mu", in a way that is consistent with the definition of kernel distance
                    kk[ika,ikb] = exp(-alchem.mu)
                else:
-                  kk[ika,ikb] = envk(envA, envB, alchem)              
+                  #if za == zb:  #uncomment to zero out kernels between different species
+                    kk[ika,ikb] = envk(envA, envB, alchem)              
+                  #else: kk[ika,ikb] = 0
                ikb+=1
          ika+=1
    aidx = {}
@@ -229,8 +253,7 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
             nenv = lcm(nenvA, nenvB)
             hun = lcm_best_cost(1-kk)
         else:
-            hun=best_cost(1.0-kk)
-        
+            hun=best_cost(1.0-kk)        
         cost = 1-hun/nenv
    elif mode == "permanent":
         # there is no place to hide: cross-species environments are not necessarily zero 
@@ -238,8 +261,8 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
         else: cost = xperm(kk)
             
         cost = cost/np.math.factorial(nenv)/nenv        
-   elif mode == "regmatch":
-       cost=regmatch(kk, gamma, 1e-6)  # hard-coded residual error for regularized gamma
+   elif mode == "rematch":
+       cost=rematch(kk, gamma, 1e-6)  # hard-coded residual error for regularized gamma
        # print cost, kk.sum()/(nenv*nenv), envk(strucA.globenv, strucB.globenv, alchem)
    else: raise ValueError("Unknown global fingerprint mode ", mode)
    
