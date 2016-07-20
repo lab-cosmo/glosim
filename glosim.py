@@ -1,5 +1,4 @@
-#!/u/dem/ceriottm/local/bin/python
-#/usr/bin/env python
+#!/usr/bin/env python
 # Computes the matrix of similarities between structures in a xyz file
 # by first getting SOAP descriptors for all environments, finding the best
 # match between environments using the Hungarian algorithm, and finally
@@ -646,11 +645,11 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
               def dorow(irow,nf,nprocs,iproc, psim):
                 for jframe in range(iproc,nf,nprocs):
                     sij,senvij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, peps = permanenteps, gamma=reggamma)          
-                    if not nonorm: sij/np.sqrt(nrm[irow]*nrm[jframe])  
+                    if not nonorm: sij/=np.sqrt(nrm[irow]*nrm[jframe])  
                     psim[jframe]=sij
               proclist = []   
               psim = Array('d', nf, lock=False)      
-              sim[iframe,iframe]=1.0
+              # sim[iframe,iframe]=1.0
               for iproc in range (nprocs):
                 while(len(proclist)>=nprocs):
                     for ip in proclist:
