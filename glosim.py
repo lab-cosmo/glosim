@@ -198,8 +198,8 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
              
             if fl_envsim:
               simenv[icount*nenv:icount*nenv+nenv,icount*nenv:icount*nenv+nenv]=senvii
-            nrm[icount]=sii     
-            
+            nrm[icount]=sii
+
             icount +=1    
         iframe +=1; 
       
@@ -649,7 +649,9 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
                     psim[jframe]=sij
               proclist = []   
               psim = Array('d', nf, lock=False)      
-              # sim[iframe,iframe]=1.0
+              if nonorm: sim[iframe,iframe] = nrm[iframe]
+              else: sim[iframe,iframe] = 1
+              
               for iproc in range (nprocs):
                 while(len(proclist)>=nprocs):
                     for ip in proclist:
