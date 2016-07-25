@@ -177,7 +177,9 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
             else:
                 si = structure(alchem)
                 sys.stderr.write("Frame %d                              \r" %(iframe) )
-                si.parse(at, coff, nd, ld, gs, centerweight, nocenter, noatom, kit = kit)                
+                si.parse(at, coff, nd, ld, gs, centerweight, nocenter, noatom, kit = kit)       
+                if kmode == "average" and not verbose: # don't need to store the list of all environments!
+                    si.env = []
                 sl.append(si)
             if verbose:
                 slog.write("# Frame %d \n" % (iframe))
