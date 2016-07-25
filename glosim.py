@@ -368,8 +368,12 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
             if (kmode=="rematch"): fsim.write( " Regularized parameter: %f " % (reggamma) )
             fsim.write("\n")
             for iframe in range(0,nf):
-                for x in sim[iframe][0:nf_ref]:
-                    fsim.write("%20.12e " % (np.sqrt(max(2-2*x,0))))
+                for jframe in range(0,nf_ref):
+               # for x in sim[iframe][0:nf_ref]:
+                    if nonorm:
+                      fsim.write("%20.12e " % (np.sqrt(max(0,nrm[iframe]+nrm_ref[jframe]-2*sim[iframe][jframe]))))
+                    else:
+                      fsim.write("%20.12e " % (np.sqrt(max(0,2-2*sim[iframe][jframe]))))
                 fsim.write("\n")   
 
 #=============================================================================
@@ -413,7 +417,10 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
             landmarks.append(iframe)
             for jframe in range(nf):            
                 sim_rect[iland][jframe]=k_in[iland][jframe]
-                dist_list[jframe] = np.sqrt(2.0-2.0*k_in[iland][jframe]) # use kernel metric
+                if nonorm:
+                  dist_list[jframe]=np.sqrt(max((nrm[iframe]+nrm[jframe]-2*k_in[iland][jframe]),0))
+                else:
+                  dist_list[jframe] = np.sqrt(max((2.0-2.0*k_in[iland][jframe]),0)) # ??? use kernel metric
             landlist.write("# Landmark list\n")
             landlist.write("%d\n" % (landmarks[0]))
             landxyz.write(al[landmarks[0]])        
@@ -442,7 +449,10 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
                 iframe = maxj
                 for jframe in range(nf):                
                     sim_rect[iland][jframe]=k_in[iland][jframe]
-                    dij = np.sqrt(2.0-2.0*k_in[iland][jframe])
+                    if nonorm:
+                      dij= np.sqrt(max((nrm[iframe]+nrm[jframe]-2.0*k_in[iland][jframe]),0)) # use kernel metric
+                    else:
+                      dij = np.sqrt(max((2.0-2.0*k_in[iland][jframe]),0))
                     if(dij<dist_list[jframe]): dist_list[jframe]=dij
                 if(partialsim):
                   for x in sim_rect[iland,:]:
@@ -458,9 +468,12 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
             sli=sl[iframe]
             for jframe in range(nf):            
                 sij,senvij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, fout=None,peps = permanenteps, gamma=reggamma)
-                if not nonorm: sij/=np.sqrt(nrm[iframe]*nrm[jframe])
+                if not nonorm: 
+                       sij/=np.sqrt(nrm[iframe]*nrm[jframe])
+                       dist_list[jframe] = np.sqrt(max(0,2-2*sij)) # use kernel metric
+                else:
+                       dist_list[jframe]= np.sqrt(max((nrm[iframe]+nrm[jframe]-2.0*sij),0)) # use kernel metric
                 sim_rect[iland][jframe]=sij
-                dist_list[jframe] = np.sqrt(max(0,2-2*sij)) # use kernel metric
             #for x in sim_rect[iland][:]:
             #    fsim.write("%8.4e " %(x))
             #fsim.write("\n")
@@ -496,9 +509,15 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
               for jframe in range(nf):                
                 sij,senvij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma)
                 # normalize the kernel
-                if not nonorm: sij/=np.sqrt(nrm[iframe]*nrm[jframe])
+                if not nonorm: 
+                       sij/=np.sqrt(nrm[iframe]*nrm[jframe])
+                       dij = np.sqrt(max(0,2-2*sij)) # use kernel metric
+                else:
+                       dij= np.sqrt(max((nrm[iframe]+nrm[jframe]-2.0*sij),0)) # use kernel metric
                 sim_rect[iland][jframe]=sij
-                dij = np.sqrt(max(0,2-2*sij))
+              #  if not nonorm: sij/=np.sqrt(nrm[iframe]*nrm[jframe])
+              #  sim_rect[iland][jframe]=sij
+              #  dij = np.sqrt(max(0,2-2*sij))
                 if(dij<dist_list[jframe]): dist_list[jframe]=dij
               if(partialsim):
                   for x in sim_rect[iland,:]:
@@ -510,9 +529,15 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
               def docol(pdist, psim, iframe, nf, nproc, iproc):
                   for jframe in range(iproc, nf, nproc):                                
                      sij,senvij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma)
-                     if not nonorm: sij/=np.sqrt(nrm[iframe]*nrm[jframe])                
+                     if not nonorm: 
+                            sij/=np.sqrt(nrm[iframe]*nrm[jframe])
+                            dij = np.sqrt(max(0,2-2*sij)) # use kernel metric
+                     else:
+                            dij= np.sqrt(max((nrm[iframe]+nrm[jframe]-2.0*sij),0)) # use kernel metric
                      psim[jframe]=sij
-                     dij= np.sqrt(max(0,2-2*sij))
+                   #  if not nonorm: sij/=np.sqrt(nrm[iframe]*nrm[jframe])                
+                   #  psim[jframe]=sij
+                   #  dij= np.sqrt(max(0,2-2*sij))
                      if (dij < pdist[jframe]): pdist[jframe]=dij
                #   print iframe,jframe
                
@@ -586,8 +611,9 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
             if (kmode=="rematch"): fsim.write( " Regularized parameter: %f " % (reggamma) )
             fsim.write("\n")
             for iframe in range(0,m):
-                for x in sim[iframe][0:m]:
-                    fsim.write("%16.8e " % (np.sqrt(max(2-2*x,0))))
+                for jframe in range(0,m):
+               # for x in sim[iframe][0:m]:
+                    fsim.write("%16.8e " % (np.sqrt(max((sim[iframe][iframe]+sim[jframe][jframe]-2*sim[iframe][jframe]),0))))
                 fsim.write("\n")   
             fsim.close()
             
@@ -598,8 +624,13 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
             if (kmode=="rematch"): fsim.write( " Regularized parameter: %f " % (reggamma) )
             fsim.write("\n")
             for jframe in range(0,nf):
-                for x in sim_rect[:,jframe]:
-                    fsim.write("%16.8e " % (np.sqrt(max(2-2*x,0))))
+                for iframe in range(0,m):
+                    if nonorm:
+               # for x in sim_rect[:,iframe]:
+                       fsim.write("%16.8e " % (np.sqrt(max((nrm[jframe]+nrm[landmarks[iframe]]-2*sim_rect[iframe][jframe]),0))))
+                    else:
+                       fsim.write("%16.8e " % (np.sqrt(max((2-2*sim_rect[iframe][jframe]),0))))
+                       
                 fsim.write("\n")   
             fsim.close()
 #===============================================================================================================================================
@@ -704,8 +735,9 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
             if (kmode=="rematch"): fsim.write( " Regularized parameter: %f " % (reggamma) )
             fsim.write("\n")
             for iframe in range(0,nf):
-                for x in sim[iframe][0:nf]:
-                    fsim.write("%16.8e " % (np.sqrt(max(2-2*x,0))))
+                for jframe in range(0,nf):
+               # for x in sim[iframe][0:nf]:
+                    fsim.write("%16.8e " % (np.sqrt(max((sim[iframe][iframe]+sim[iframe][jframe]-2*sim[iframe][jframe]),0))))
                 fsim.write("\n") 
 
         if fl_envsim:
@@ -717,8 +749,9 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
             if (kmode=="rematch"): fsimenv.write( " Regularized parameter: %f " % (reggamma) )
             fsimenv.write("\n")
             for iframe in range(0,nf*nenv):
-                for x in simenv[iframe][0:nf*nenv]:
-                    fsimenv.write("%16.8e " % (np.sqrt(max(2-2*x,0)))) # output distance matrix
+                for jframe in range(0,nf*nenv):
+              #  for x in simenv[iframe][0:nf*nenv]:
+                    fsimenv.write("%16.8e " % (np.sqrt(max((simenv[iframe][iframe]+simenv[jframe][jframe]-2*simenv[iframe][jframe]),0)))) # output distance matrix
                 fsimenv.write("\n")  
             fsimenv.close()
     sys.stderr.write("\n ============= Glosim Ended Successfully ============== \n") 
