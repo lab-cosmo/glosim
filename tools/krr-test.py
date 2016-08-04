@@ -14,6 +14,7 @@ def main( kernel, trainvector, proplist,csi ):
         last_pos = f.tell()
         header=f.readline().strip()
         if not header.startswith("#"): f.seek(last_pos)
+        iframe=0
         for ln in f:
           ai=[float(x) for x in ln.split()]
           if (len(ai) != len(tc)):
@@ -23,6 +24,8 @@ def main( kernel, trainvector, proplist,csi ):
           for j in range(len(tc)):
              t+=(ai[j]**csi)*tc[j]
           krp.append(t)
+          print t,p[iframe],abs(t-p[iframe])
+          iframe+=1
 
       # if (len(kij[0]) != len(tc)):
       #   print "inconsistent kernel and train vector file"
