@@ -263,16 +263,18 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
                 if verbose: qlogref.write(at)
                 # parses one of the structures, topping up atoms with isolated species if requested
                 if restartflag: #if we are restarting from previously calculated soap files
-                   if sl_ref.exists(iframe):
-                     sys.stderr.write ("Reading SOAP for reference frame %d       \r " %(iframe))
-                     si = sl_ref[iframe]
-                   else: 
-                     print >> sys.stderr, "\n Could not Find file for reference frame: ", iframe ,"\n" # At the moment the way it is implemented if it does not exist and recalculate
-                     return                                                                 #  it will store the missing frame as first frame file.
+                    if sl_ref.exists(iframe):
+                        sys.stderr.write ("Reading SOAP for reference frame %d       \r " %(iframe))
+                        si = sl_ref[iframe]
+                    else: 
+                        print >> sys.stderr, "\n Could not Find file for reference frame: ", iframe ,"\n" # At the moment the way it is implemented if it does not exist and recalculate
+                        return                                                                 #  it will store the missing frame as first frame file.
                 else:
-                   si = structure(alchem)
-                   si.parse(at, coff, nd, ld, gs, centerweight, nocenter, noatom, kit = kit)
-                   sl_ref.append(si)
+                    si = structure(alchem)
+                    si.parse(at, coff, nd, ld, gs, centerweight, nocenter, noatom, kit = kit)
+                    if kmode == "average" and not verbose: 
+                        si.env = []
+                    sl_ref.append(si)
                 if verbose:
                     slog.write("# Frame %d \n" % (iframe))
                     for sp, el in si.env.iteritems():
