@@ -2,7 +2,7 @@
 
 # compute kernel ridge regression for a data set given a kernel matrix
 # and a vector of the observed properties. syntax:
-# $  krr.py <kernel.dat> <properties.dat> [ testfrac, csi, sigma ]
+# $  krr.py <kernel.dat> <properties.dat> [ options ]
 
 import argparse
 import numpy as np
@@ -56,13 +56,15 @@ def randomsubset(ndata, nsel, plist=None):
             cplist[j] -= psel
     return rdata
 
-def main(kernel, props, mode, trainfrac, csi, sigma, ntests, ttest,savevector=False,prefix=''):
+def main(kernel, props, mode, trainfrac, csi, sigma, ntests, ttest, savevector="", refindex=""):
 
     trainfrac=float(trainfrac) 
     csi = float(csi)
     sigma = float(sigma)
     ntests = int(ntests)
     ttest=float(ttest)
+    if (mode == "sequential" or mode == "all") and ntests>1:
+        raise ValueError("No point in having multiple tests when using determininstic train set selection")
      
     # reads kernel
     fkernel=open(kernel, "r")
@@ -78,8 +80,17 @@ def main(kernel, props, mode, trainfrac, csi, sigma, ntests, ttest,savevector=Fa
         sline=map(float,fline.split())
         ik+=1
     # heuristics to see if this is a kernel or a similarity matrix!!
-    if kij[0,0]<1e-5:
+    if kij[0,0]<1e-8:
         kij = (1-0.5*kij*kij)
+        
+    
+    # reads index, if available
+    if refindex == "":
+        rlabs = np.asarray(range(nel), int)
+    else:
+        rlabs = np.loadtxt(refindex,dtype=int)
+        if len(rlabs) != nel:
+            raise ValueError("Reference index size mismatch")
     
     # first hyperparameter - we raise the kernel to a positive exponent to make it sharper or smoother
     kij = kij**csi
@@ -126,12 +137,7 @@ def main(kernel, props, mode, trainfrac, csi, sigma, ntests, ttest,savevector=Fa
             rms=np.sqrt(((krp[:]-p[:])**2).sum()/len(p))
             sup=abs(krp[:]-p[:]).max()
             print "# train-set MAE: %f RMS: %f SUP: %f" % (mae, rms, sup)
-            if savevector :
-               comment= "# train-set MAE: "+str(mae)+ " RMSE: "+ str(rms)+" SUP: " +str(sup)
-               fname=props+".predict"
-               f=open(fname,'w')
-               np.savetxt(f,krp,header=comment)
-               f.close()
+            ltain = range(nel)            
     else: 
         np.set_printoptions(threshold=10000)
         ntrain = int(trainfrac*nel)
@@ -149,6 +155,8 @@ def main(kernel, props, mode, trainfrac, csi, sigma, ntests, ttest,savevector=Fa
                 psel[ltrue] = 0.0
             if mode == "random":
                 ltrain[:] = randomsubset(nel, ntrain, psel)
+            elif mode == "sequential":
+                ltrain[:] = range(ntrain)
             elif mode == "fps":            
                 isel=int(np.random.uniform()*nel)
                 while isel in ltrue:
@@ -162,7 +170,6 @@ def main(kernel, props, mode, trainfrac, csi, sigma, ntests, ttest,savevector=Fa
                     dmax = 0
                     imax = 0       
                     for i in nontrue:
-#                        if i in ltrue: continue
                         dsel = np.sqrt(1.0-kij[i, isel])
                         if dsel < ldist[i]:
                            imin[i] = nsel-1                    
@@ -228,12 +235,11 @@ def main(kernel, props, mode, trainfrac, csi, sigma, ntests, ttest,savevector=Fa
         print "# Test points  MAE=%f  RMSE=%f  SUP=%f " % (testmae/ntests, testrms/ntests, testsup/ntests)
         if len(ltrue) > 0: 
             print "# True test points  MAE=%f  RMSE=%f  SUP=%f " % (truemae/ntests, truerms/ntests, truesup/ntests)
+    
     if savevector:
-        if prefix=="": prefix=kernel
-        if prefix.endswith('.k'): prefix=prefix[:-2]+'_trainvector.dat'      
-        fname=open(prefix,'w')
+        fname=open(savevector,'w')
         commentline=' Train Vector from kernel matrix: '+kernel+' and properties from '+ props + ' selection mode: '+mode+' : Csi, sigma = ' + str(csi) +' , '+ str(sigma)
-        np.savetxt(fname,tc,header=commentline)
+        np.savetxt(fname,np.asarray([tc, ltrain, rlabs[ltrain]]).T,fmt=("%15.7e", "%10d", "%10d"),header=commentline)
         fname.close()
 
 if __name__ == '__main__':
@@ -246,11 +252,11 @@ if __name__ == '__main__':
     parser.add_argument("--truetest", type=float, default='0.0', help="Take these points out from the selection procedure")
     parser.add_argument("--csi", type=float, default='1.0', help="Kernel scaling")
     parser.add_argument("--sigma", type=float, default='1e-3', help="Sigma")
-    parser.add_argument("--ntests", type=int, default='10', help="Number of tests")
-    parser.add_argument("--save", action="store_true", help="Save the treain vector in file")
-    parser.add_argument("--prefix", type=str, default="", help="prefix for output file")      
+    parser.add_argument("--ntests", type=int, default='1', help="Number of tests")
+    parser.add_argument("--refindex",  type=str, default="", help="Structure indices of the kernel matrix (useful when dealing with a subset of a larger structures file)")        
+    parser.add_argument("--saveweights",  type=str, default="", help="Save the train-set weights vector in file")    
     
     args = parser.parse_args()
     
     main(kernel=args.kernel[0], props=args.props[0], mode=args.mode, trainfrac=args.f, csi=args.csi, 
-         sigma=args.sigma, ntests=args.ntests, ttest=args.truetest,savevector=args.save,prefix=args.prefix)
+         sigma=args.sigma, ntests=args.ntests, ttest=args.truetest,savevector=args.saveweights, refindex=args.refindex)
