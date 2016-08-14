@@ -57,8 +57,8 @@ def main(kernel, props, weights, csi):
                 ntest +=1 
             print k+ktot, p[ktot+k], krp[k], lab
         ktot += nk
-    print "# Train points MAE=%f  RMSE=%f  SUP=%f" % (trainmae/ntrain, trainrms/ntrain, trainsup)
-    print "# Test points  MAE=%f  RMSE=%f  SUP=%f " % (testmae/ntest, testrms/ntest, testsup)    
+    print "# Train points MAE=%f  RMSE=%f  SUP=%f" % (trainmae/ntrain, np.sqrt(trainrms/ntrain), trainsup)
+    print "# Test points  MAE=%f  RMSE=%f  SUP=%f " % (testmae/ntest, np.sqrt(testrms/ntest), testsup)    
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="""Computes KRR predictions from a weights vector obtained from a previous run of krr.py with --saveweights.""")
