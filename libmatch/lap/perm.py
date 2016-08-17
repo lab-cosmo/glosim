@@ -30,7 +30,7 @@ def _mcperm(mtx, eps = 1e-3, ntry=None, seed=None):
 
 # Monte Carlo evaluation of the permanent
 try:
-    from permanent import permanent_mc, permanent_ryser, regmatch
+    from permanent import permanent_mc, permanent_ryser, rematch
     def mcperm(mtx, eps=1e-3, ntry=None, seed=None):  # , ntry=100000, seed=12345): #
         return permanent_mc(mtx,eps,0 if (ntry is None) else ntry, 0 if (seed is None) else seed)
     def xperm(mtx):
@@ -42,8 +42,8 @@ except:
         return _mcperm(mtx,eps,ntry,seed)
     def xperm(mtx, eps=1e-6):
         return _mcperm(mtx,eps)
-    def regmatch(mtx, gamma, eps):
-        raise ValueError("No Python equivalent to regmatch function...")
+    def rematch(mtx, gamma, eps):
+        raise ValueError("No Python equivalent to rematch function...")
    
 import time, sys
 if __name__ == "__main__":

@@ -19,13 +19,16 @@ import numpy as np
 from copy import copy 
 from time import ctime
 from datetime import datetime
+import gc
+import cPickle as pickle
+
 # tries really hard to flush any buffer to disk!
 def flush(stream):
     stream.flush()
     os.fsync(stream)
    
 
-def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanenteps, reggamma, nocenter, envsim, noatom, nprocs, verbose=False, envij=None, usekit=False, kit="auto", alchemyrules="none",prefix="",nlandmark=0, printsim=False,ref_xyz="",partialsim=False,lowmem=False,restartflag=False):
+def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, permanenteps, reggamma, nocenter, envsim, noatom, nprocs, verbose=False, envij=None, usekit=False, kit="auto", alchemyrules="none",prefix="",nlandmark=0, printsim=False,ref_xyz="",partialsim=False,lowmem=False,restartflag=False):
     start_time = datetime.now()
     print >>sys.stderr, "          TIME:  ", ctime() ;
     print >>sys.stderr, "        ___  __    _____  ___  ____  __  __ ";
@@ -69,6 +72,17 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
     # Sets alchemical matrix
     if (alchemyrules=="none"):
        alchem = alchemy(mu=mu)
+    elif (alchemyrules=="read"):
+       try:
+            file = open("alchemy.pickle","rb")
+       except IOError:
+            raise IOError("alchemy.pickle file is not present")
+       gc.disable()
+       r=pickle.load(file)
+       file.close()
+       gc.enable()
+       print >> sys.stderr, "Using Alchemy rules: ", r,"\n"
+       alchem = alchemy(mu=mu,rules=r)
     else:
        r=alchemyrules.replace('"', '').strip()
        r=alchemyrules.replace("'", '').strip()
@@ -163,7 +177,11 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
             else:
                 si = structure(alchem)
                 sys.stderr.write("Frame %d                              \r" %(iframe) )
-                si.parse(at, coff, nd, ld, gs, centerweight, nocenter, noatom, kit = kit)
+                si.parse(at, coff, nd, ld, gs, centerweight, nocenter, noatom, kit = kit)       
+                
+                # discard the list of all environments if they are not needed for this calculation
+                if kmode == "average" and not verbose: 
+                    si.env = []
                 sl.append(si)
             if verbose:
                 slog.write("# Frame %d \n" % (iframe))
@@ -184,10 +202,11 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
              
             if fl_envsim:
               simenv[icount*nenv:icount*nenv+nenv,icount*nenv:icount*nenv+nenv]=senvii
-            nrm[icount]=sii     
+            nrm[icount]=sii
+
             icount +=1    
         iframe +=1; 
-      
+    np.savetxt(prefix+".norm.dat",nrm)  
     print >> sys.stderr, "Computing kernel matrix"
     # must fix the normalization of the similarity matrix!
 #    sys.stderr.write("Computing kernel normalization           \n")
@@ -244,16 +263,18 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
                 if verbose: qlogref.write(at)
                 # parses one of the structures, topping up atoms with isolated species if requested
                 if restartflag: #if we are restarting from previously calculated soap files
-                   if sl_ref.exists(iframe):
-                     sys.stderr.write ("Reading SOAP for reference frame %d       \r " %(iframe))
-                     si = sl_ref[iframe]
-                   else: 
-                     print >> sys.stderr, "\n Could not Find file for reference frame: ", iframe ,"\n" # At the moment the way it is implemented if it does not exist and recalculate
-                     return                                                                 #  it will store the missing frame as first frame file.
+                    if sl_ref.exists(iframe):
+                        sys.stderr.write ("Reading SOAP for reference frame %d       \r " %(iframe))
+                        si = sl_ref[iframe]
+                    else: 
+                        print >> sys.stderr, "\n Could not Find file for reference frame: ", iframe ,"\n" # At the moment the way it is implemented if it does not exist and recalculate
+                        return                                                                 #  it will store the missing frame as first frame file.
                 else:
-                   si = structure(alchem)
-                   si.parse(at, coff, nd, ld, gs, centerweight, nocenter, noatom, kit = kit)
-                   sl_ref.append(si)
+                    si = structure(alchem)
+                    si.parse(at, coff, nd, ld, gs, centerweight, nocenter, noatom, kit = kit)
+                    if kmode == "average" and not verbose: 
+                        si.env = []
+                    sl_ref.append(si)
                 if verbose:
                     slog.write("# Frame %d \n" % (iframe))
                     for sp, el in si.env.iteritems():
@@ -284,7 +305,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
           pfkernel.write("# OOS Kernel matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)) )
           if (usekit):pfkernel.write( " Using reference kit: %s " % (str(kit)) )
           if (alchemyrules!="none"):pfkernel.write( " Using alchemy rules: %s " % (alchemyrules) )
-          if (kmode=="regmatch"): pfkernel.write( " Regularized parameter: %f " % (reggamma) )
+          if (kmode=="rematch"): pfkernel.write( " Regularized parameter: %f " % (reggamma) )
           pfkernel.write("\n")
         
         if (nprocs<=1):
@@ -293,7 +314,8 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
            sli=sl[iframe]
            for jframe in range(nf_ref):
              sij,senvij = structk(sli, sl_ref[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma)
-             sim[iframe][jframe]=sij/np.sqrt(nrm[iframe]*nrm_ref[jframe])
+             if not nonorm: sij/=np.sqrt(nrm[iframe]*nrm_ref[jframe])
+             sim[iframe][jframe]=sij
          if(partialsim):
               for x in sim[iframe,:]:
                 pfkernel.write("%20.12e " % (x))
@@ -305,7 +327,8 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
               def dorow(irow,nf_ref,nprocs,iproc, psim):
                 for jframe in range(iproc,nf_ref,nprocs):
                     sij,senvij = structk(sli, sl_ref[jframe], alchem, periodic, mode=kmode,fout=None, peps = permanenteps, gamma=reggamma)
-                    psim[jframe]=sij/np.sqrt(nrm[irow]*nrm_ref[jframe])
+                    if not nonorm: sij/=np.sqrt(nrm[irow]*nrm_ref[jframe])                        
+                    psim[jframe]= sij
               proclist = []
               psim = Array('d', nf_ref, lock=False)
               for iproc in range (nprocs):
@@ -334,7 +357,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
         fkernel.write("# OOS Kernel matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)) )
         if (usekit):fkernel.write( " Using reference kit: %s " % (str(kit)) )
         if (alchemyrules!="none"):fkernel.write( " Using alchemy rules: %s " % (alchemyrules) )
-        if (kmode=="regmatch"): fkernel.write( " Regularized parameter: %f " % (reggamma) )
+        if (kmode=="rematch"): fkernel.write( " Regularized parameter: %f " % (reggamma) )
         fkernel.write("\n")
         for iframe in range(0,nf):
             for x in sim[iframe][0:nf_ref]:
@@ -346,11 +369,15 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
             fsim.write("# OOS Distance matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)) )
             if (usekit):fsim.write( " Using reference kit: %s " % (str(kit)) )
             if (alchemyrules!="none"):fsim.write( " Using alchemy rules: %s " % (alchemyrules) )
-            if (kmode=="regmatch"): fsim.write( " Regularized parameter: %f " % (reggamma) )
+            if (kmode=="rematch"): fsim.write( " Regularized parameter: %f " % (reggamma) )
             fsim.write("\n")
             for iframe in range(0,nf):
-                for x in sim[iframe][0:nf_ref]:
-                    fsim.write("%20.12e " % (np.sqrt(max(2-2*x,0))))
+                for jframe in range(0,nf_ref):
+               # for x in sim[iframe][0:nf_ref]:
+                    if nonorm:
+                      fsim.write("%20.12e " % (np.sqrt(abs(nrm[iframe]+nrm_ref[jframe]-2*sim[iframe][jframe]))))
+                    else:
+                      fsim.write("%20.12e " % (np.sqrt(abs(2-2*sim[iframe][jframe]))))
                 fsim.write("\n")   
 
 #=============================================================================
@@ -367,7 +394,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
           pfkernel.write("# Kernel matrix for OOS from %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s" % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)) )
           if (usekit):pfkernel.write( " Using reference kit: %s " % (str(kit)) )
           if (alchemyrules!="none"):pfkernel.write( " Using alchemy rules: %s " % (alchemyrules) )
-          if (kmode=="regmatch"): pfkernel.write( " Regularized parameter: %f " % (reggamma) )
+          if (kmode=="rematch"): pfkernel.write( " Regularized parameter: %f " % (reggamma) )
           pfkernel.write("\n")
  
         m = nlandmark
@@ -394,7 +421,10 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
             landmarks.append(iframe)
             for jframe in range(nf):            
                 sim_rect[iland][jframe]=k_in[iland][jframe]
-                dist_list[jframe] = np.sqrt(2.0-2.0*k_in[iland][jframe]) # use kernel metric
+                if nonorm:
+                  dist_list[jframe]=np.sqrt(abs(nrm[iframe]+nrm[jframe]-2*k_in[iland][jframe]))
+                else:
+                  dist_list[jframe] = np.sqrt(abs(2.0-2.0*k_in[iland][jframe])) # ??? use kernel metric
             landlist.write("# Landmark list\n")
             landlist.write("%d\n" % (landmarks[0]))
             landxyz.write(al[landmarks[0]])        
@@ -423,7 +453,10 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
                 iframe = maxj
                 for jframe in range(nf):                
                     sim_rect[iland][jframe]=k_in[iland][jframe]
-                    dij = np.sqrt(2.0-2.0*k_in[iland][jframe])
+                    if nonorm:
+                      dij= np.sqrt(abs(nrm[iframe]+nrm[jframe]-2.0*k_in[iland][jframe])) # use kernel metric
+                    else:
+                      dij = np.sqrt(abs(2.0-2.0*k_in[iland][jframe]))
                     if(dij<dist_list[jframe]): dist_list[jframe]=dij
                 if(partialsim):
                   for x in sim_rect[iland,:]:
@@ -432,16 +465,19 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
                   flush(pfkernel)
             nlandstart=nlandmark_in
         else:        
-            iframe=0       
-#            iframe=randint(0,nf-1)  # picks a random frame
+#            iframe=0       
+            iframe=randint(0,nf-1)  # picks a random frame
             iland=0
             landmarks.append(iframe)
             sli=sl[iframe]
             for jframe in range(nf):            
                 sij,senvij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, fout=None,peps = permanenteps, gamma=reggamma)
-                sij/=np.sqrt(nrm[iframe]*nrm[jframe])
+                if not nonorm: 
+                       sij/=np.sqrt(nrm[iframe]*nrm[jframe])
+                       dist_list[jframe] = np.sqrt(abs(2.0-2.0*sij)) # use kernel metric
+                else:
+                       dist_list[jframe]= np.sqrt(abs(nrm[iframe]+nrm[jframe]-2.0*sij)) # use kernel metric
                 sim_rect[iland][jframe]=sij
-                dist_list[jframe] = np.sqrt(max(0,2-2*sij)) # use kernel metric
             #for x in sim_rect[iland][:]:
             #    fsim.write("%8.4e " %(x))
             #fsim.write("\n")
@@ -477,9 +513,15 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
               for jframe in range(nf):                
                 sij,senvij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma)
                 # normalize the kernel
-                sij/=np.sqrt(nrm[iframe]*nrm[jframe])
+                if not nonorm: 
+                       sij/=np.sqrt(nrm[iframe]*nrm[jframe])
+                       dij = np.sqrt(abs(2-2*sij)) # use kernel metric
+                else:
+                       dij= np.sqrt(abs(nrm[iframe]+nrm[jframe]-2.0*sij)) # use kernel metric
                 sim_rect[iland][jframe]=sij
-                dij = np.sqrt(max(0,2-2*sij))
+              #  if not nonorm: sij/=np.sqrt(nrm[iframe]*nrm[jframe])
+              #  sim_rect[iland][jframe]=sij
+              #  dij = np.sqrt(max(0,2-2*sij))
                 if(dij<dist_list[jframe]): dist_list[jframe]=dij
               if(partialsim):
                   for x in sim_rect[iland,:]:
@@ -491,9 +533,15 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
               def docol(pdist, psim, iframe, nf, nproc, iproc):
                   for jframe in range(iproc, nf, nproc):                                
                      sij,senvij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma)
-                     sij/=np.sqrt(nrm[iframe]*nrm[jframe])                
+                     if not nonorm: 
+                            sij/=np.sqrt(nrm[iframe]*nrm[jframe])
+                            dij = np.sqrt(abs(2-2*sij)) # use kernel metric
+                     else:
+                            dij= np.sqrt(abs(nrm[iframe]+nrm[jframe]-2.0*sij)) # use kernel metric
                      psim[jframe]=sij
-                     dij= np.sqrt(max(0,2-2*sij))
+                   #  if not nonorm: sij/=np.sqrt(nrm[iframe]*nrm[jframe])                
+                   #  psim[jframe]=sij
+                   #  dij= np.sqrt(max(0,2-2*sij))
                      if (dij < pdist[jframe]): pdist[jframe]=dij
                #   print iframe,jframe
                
@@ -539,7 +587,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
         fkernel.write("# Kernel matrix for landmarks from  %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)) )
         if (usekit):fkernel.write( " Using reference kit: %s " % (str(kit)) )
         if (alchemyrules!="none"):fkernel.write( " Using alchemy rules: %s " % (alchemyrules) )
-        if (kmode=="regmatch"): fkernel.write( " Regularized parameter: %f " % (reggamma) )
+        if (kmode=="rematch"): fkernel.write( " Regularized parameter: %f " % (reggamma) )
         fkernel.write("\n")
         for iframe in range(0,m):
             for x in sim[iframe][0:m]:
@@ -551,7 +599,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
         fkernel.write("# Kernel matrix for OOS from %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s" % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)) )
         if (usekit):fkernel.write( " Using reference kit: %s " % (str(kit)) )
         if (alchemyrules!="none"):fkernel.write( " Using alchemy rules: %s " % (alchemyrules) )
-        if (kmode=="regmatch"): fkernel.write( " Regularized parameter: %f " % (reggamma) )
+        if (kmode=="rematch"): fkernel.write( " Regularized parameter: %f " % (reggamma) )
         fkernel.write("\n")
         for jframe in range(0,nf):
             for x in sim_rect[:,jframe]:
@@ -564,11 +612,12 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
             fsim.write("# Distance matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s" % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)))
             if (usekit):fsim.write( " Using reference kit: %s " % (str(kit)) )
             if (alchemyrules!="none"):fsim.write( " Using alchemy rules: %s " % (alchemyrules) )
-            if (kmode=="regmatch"): fsim.write( " Regularized parameter: %f " % (reggamma) )
+            if (kmode=="rematch"): fsim.write( " Regularized parameter: %f " % (reggamma) )
             fsim.write("\n")
             for iframe in range(0,m):
-                for x in sim[iframe][0:m]:
-                    fsim.write("%16.8e " % (np.sqrt(max(2-2*x,0))))
+                for jframe in range(0,m):
+               # for x in sim[iframe][0:m]:
+                    fsim.write("%16.8e " % (np.sqrt(abs(sim[iframe][iframe]+sim[jframe][jframe]-2*sim[iframe][jframe]))))
                 fsim.write("\n")   
             fsim.close()
             
@@ -576,11 +625,16 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
             fsim.write("# OOS Distance matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s" % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)))
             if (usekit):fsim.write( " Using reference kit: %s " % (str(kit)) )
             if (alchemyrules!="none"):fsim.write( " Using alchemy rules: %s " % (alchemyrules) )
-            if (kmode=="regmatch"): fsim.write( " Regularized parameter: %f " % (reggamma) )
+            if (kmode=="rematch"): fsim.write( " Regularized parameter: %f " % (reggamma) )
             fsim.write("\n")
             for jframe in range(0,nf):
-                for x in sim_rect[:,jframe]:
-                    fsim.write("%16.8e " % (np.sqrt(max(2-2*x,0))))
+                for iframe in range(0,m):
+                    if nonorm:
+               # for x in sim_rect[:,iframe]:
+                       fsim.write("%16.8e " % (np.sqrt(abs(nrm[jframe]+nrm[landmarks[iframe]]-2*sim_rect[iframe][jframe]))))
+                    else:
+                       fsim.write("%16.8e " % (np.sqrt(abs(2-2*sim_rect[iframe][jframe]))))
+                       
                 fsim.write("\n")   
             fsim.close()
 #===============================================================================================================================================
@@ -595,12 +649,14 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
           pfkernel.write("# Kernel matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)) )
           if (usekit):pfkernel.write( " Using reference kit: %s " % (str(kit)) )
           if (alchemyrules!="none"):pfkernel.write( " Using alchemy rules: %s " % (alchemyrules) )
-          if (kmode=="regmatch"): pfkernel.write( " Regularized parameter: %f " % (reggamma) )
+          if (kmode=="rematch"): pfkernel.write( " Regularized parameter: %f " % (reggamma) )
           pfkernel.write("\n")
         if (nprocs<=1):
             # no multiprocess
             for iframe in range (0, nf):
-                sim[iframe,iframe]=1.0
+                if nonorm: sim[iframe,iframe]=nrm[iframe]
+                else: sim[iframe,iframe]=1.0
+                
                 sli = sl[iframe]
                 for jframe in range(0,iframe):
                     if verbose:
@@ -608,7 +664,8 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
                     else: fij = None
                     # if periodic: sys.stderr.write("comparing %3d, atoms cell with  %3d atoms cell: lcm: %3d \r" % (sl[iframe].nenv, sl[jframe].nenv, lcm(sl[iframe].nenv,sl[jframe].nenv))) 
                     sij,senvij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, fout=fij, peps = permanenteps, gamma=reggamma)          
-                    sim[iframe][jframe]=sim[jframe][iframe]=sij/np.sqrt(nrm[iframe]*nrm[jframe])
+                    if not nonorm: sij/=np.sqrt(nrm[iframe]*nrm[jframe])
+                    sim[iframe][jframe]=sim[jframe][iframe]=sij
                     if fl_envsim:
                       simenv[iframe*nenv:iframe*nenv+nenv,jframe*nenv:jframe*nenv+nenv]=senvij
                       simenv[jframe*nenv:jframe*nenv+nenv,iframe*nenv:iframe*nenv+nenv]=senvij.T
@@ -625,10 +682,13 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
               def dorow(irow,nf,nprocs,iproc, psim):
                 for jframe in range(iproc,nf,nprocs):
                     sij,senvij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, peps = permanenteps, gamma=reggamma)          
-                    psim[jframe]=sij/np.sqrt(nrm[irow]*nrm[jframe])  
+                    if not nonorm: sij/=np.sqrt(nrm[irow]*nrm[jframe])  
+                    psim[jframe]=sij
               proclist = []   
               psim = Array('d', nf, lock=False)      
-              sim[iframe,iframe]=1.0
+              if nonorm: sim[iframe,iframe] = nrm[iframe]
+              else: sim[iframe,iframe] = 1
+              
               for iproc in range (nprocs):
                 while(len(proclist)>=nprocs):
                     for ip in proclist:
@@ -661,9 +721,10 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
         if(partialsim):pfkernel.close()
         fkernel = open(prefix+".k", "w")  
         fkernel.write("# Kernel matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)) )
+        if (nonorm):fkernel.write( " Un-normalized kernels " )        
         if (usekit):fkernel.write( " Using reference kit: %s " % (str(kit)) )
         if (alchemyrules!="none"):fkernel.write( " Using alchemy rules: %s " % (alchemyrules) )
-        if (kmode=="regmatch"): fkernel.write( " Regularized parameter: %f " % (reggamma) )
+        if (kmode=="rematch"): fkernel.write( " Regularized parameter: %f " % (reggamma) )
         fkernel.write("\n")
         for iframe in range(0,nf):
             for x in sim[iframe][0:nf]:
@@ -675,11 +736,12 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
             fsim.write("# Distance matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)) )
             if (usekit):fsim.write( " Using reference kit: %s " % (str(kit)) )
             if (alchemyrules!="none"):fsim.write( " Using alchemy rules: %s " % (alchemyrules) )
-            if (kmode=="regmatch"): fsim.write( " Regularized parameter: %f " % (reggamma) )
+            if (kmode=="rematch"): fsim.write( " Regularized parameter: %f " % (reggamma) )
             fsim.write("\n")
             for iframe in range(0,nf):
-                for x in sim[iframe][0:nf]:
-                    fsim.write("%16.8e " % (np.sqrt(max(2-2*x,0))))
+                for jframe in range(0,nf):
+               # for x in sim[iframe][0:nf]:
+                    fsim.write("%16.8e " % (np.sqrt(abs(sim[iframe][iframe]+sim[iframe][jframe]-2*sim[iframe][jframe]))))
                 fsim.write("\n") 
 
         if fl_envsim:
@@ -688,11 +750,12 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, permanen
             fsimenv.write("# Environment Distance matrix for %s. species: %s Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, atomicmap[envsim], coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)) )
             if (usekit):fsimenv.write( " Using reference kit: %s " % (str(kit)) )
             if (alchemyrules!="none"):fsimenv.write( " Using alchemy rules: %s " % (alchemyrules) )
-            if (kmode=="regmatch"): fsimenv.write( " Regularized parameter: %f " % (reggamma) )
+            if (kmode=="rematch"): fsimenv.write( " Regularized parameter: %f " % (reggamma) )
             fsimenv.write("\n")
             for iframe in range(0,nf*nenv):
-                for x in simenv[iframe][0:nf*nenv]:
-                    fsimenv.write("%16.8e " % (np.sqrt(max(2-2*x,0)))) # output distance matrix
+                for jframe in range(0,nf*nenv):
+              #  for x in simenv[iframe][0:nf*nenv]:
+                    fsimenv.write("%16.8e " % (np.sqrt(abs(simenv[iframe][iframe]+simenv[jframe][jframe]-2*simenv[iframe][jframe])))) # output distance matrix
                 fsimenv.write("\n")  
             fsimenv.close()
     sys.stderr.write("\n ============= Glosim Ended Successfully ============== \n") 
@@ -720,7 +783,8 @@ if __name__ == '__main__':
       parser.add_argument("--gamma", type=float, default="1.0", help="Regularization for entropy-smoothed best-match kernel")
       parser.add_argument("--kit", type=str, default="auto", help="Dictionary-style kit specification (e.g. --kit '{4:1,6:10}'")
       parser.add_argument("--alchemy_rules", type=str, default="none", help='Dictionary-style rule specification in quote (e.g. --alchemy_rules "{(6,7):1,(6,8):1}"')
-      parser.add_argument("--kernel", type=str, default="match", help="Global kernel mode (e.g. --kernel average / match / regmatch")      
+      parser.add_argument("--kernel", type=str, default="match", help="Global kernel mode (e.g. --kernel average / match / rematch")      
+      parser.add_argument("--nonorm",  action="store_true", help="Does not normalize structural kernels")   
       parser.add_argument("--permanenteps", type=float, default="0.0", help="Tolerance level for approximate permanent (e.g. --permanenteps 1e-4")     
       parser.add_argument("--distance", action="store_true", help="Also prints out similarity (as kernel distance)")
       parser.add_argument("--np", type=int, default='1', help="Use multiple processes to compute the kernel matrix")
@@ -729,7 +793,7 @@ if __name__ == '__main__':
       parser.add_argument("--refxyz", type=str, default='', help="ref xyz file if you want to compute the rectangular matrix contaning distances from ref configurations")
       parser.add_argument("--prefix", type=str, default='', help="Prefix for output files (defaults to input file name)")
       parser.add_argument("--livek",  action="store_true", help="Writes out diagnostics for the optimal match assignment of each pair of environments")   
-      parser.add_argument("--lowmem",  action="store_true", help="Writes out diagnostics for the optimal match assignment of each pair of environments")   
+      parser.add_argument("--lowmem",  action="store_true", help="Writes out diagnostics for the optimal match assignment of each pair of environments")         
       parser.add_argument("--restart",  action="store_true", help="Writes out diagnostics for the optimal match assignment of each pair of environments")   
       
            
@@ -755,4 +819,4 @@ if __name__ == '__main__':
       else:
          envij=tuple(map(int,args.ij.split(",")))
                   
-      main(args.filename, nd=args.n, ld=args.l, coff=args.c, gs=args.g, mu=args.mu, centerweight=args.cw, periodic=args.periodic, usekit=args.usekit, kit=args.kit,alchemyrules=args.alchemy_rules, kmode=args.kernel, permanenteps=args.permanenteps, reggamma=args.gamma, noatom=noatom, nocenter=nocenter, envsim=args.envsim, nprocs=args.np, verbose=args.verbose, envij=envij, prefix=args.prefix, nlandmark=args.nlandmarks, printsim=args.distance,ref_xyz=args.refxyz,partialsim=args.livek,lowmem=args.lowmem,restartflag=args.restart)
+      main(args.filename, nd=args.n, ld=args.l, coff=args.c, gs=args.g, mu=args.mu, centerweight=args.cw, periodic=args.periodic, usekit=args.usekit, kit=args.kit,alchemyrules=args.alchemy_rules, kmode=args.kernel, nonorm=args.nonorm, permanenteps=args.permanenteps, reggamma=args.gamma, noatom=noatom, nocenter=nocenter, envsim=args.envsim, nprocs=args.np, verbose=args.verbose, envij=envij, prefix=args.prefix, nlandmark=args.nlandmarks, printsim=args.distance,ref_xyz=args.refxyz,partialsim=args.livek,lowmem=args.lowmem,restartflag=args.restart)

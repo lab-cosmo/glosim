@@ -55,7 +55,7 @@ static PyObject *permanent_mc(PyObject *self, PyObject *args);
 // Forward function declaration 
 static PyObject *permanent_ryser(PyObject *self, PyObject *args);
 // Forward function declaration 
-static PyObject *regmatch(PyObject *self, PyObject *args);
+static PyObject *rematch(PyObject *self, PyObject *args);
 
 
 
@@ -63,7 +63,7 @@ static PyObject *regmatch(PyObject *self, PyObject *args);
 static PyMethodDef methods[] = {
   { "permanent_mc", permanent_mc, METH_VARARGS, "Computes the permanent of a numpy matrix by random montecarlo method upto given accuracy"},
   { "permanent_ryser", permanent_ryser, METH_VARARGS, "Computes the permanent of a numpy matrix by Ryser algorithm"},
-  { "regmatch", regmatch, METH_VARARGS, "Computes the permanent of a numpy matrix by Ryser algorithm"},
+  { "rematch", rematch, METH_VARARGS, "Computes the permanent of a numpy matrix by Ryser algorithm"},
   { NULL, NULL, 0, NULL } // Sentinel
 };
 
@@ -233,7 +233,7 @@ static PyObject *permanent_ryser(PyObject *self, PyObject *args) {
 }
 
 // Computes regularised best-match usin Sinkhorn algorithm 
-static PyObject *regmatch(PyObject *self, PyObject *args) {
+static PyObject *rematch(PyObject *self, PyObject *args) {
   // Parse the input 
   PyArrayObject *matrix;
   PyFloatObject *eps;

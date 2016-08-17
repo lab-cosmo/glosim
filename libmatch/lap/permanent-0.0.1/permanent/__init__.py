@@ -1,1 +1,1 @@
-__all__= [ "permanent_mc", "permanent_ryser", "regmatch" ]
+__all__= [ "permanent_mc", "permanent_ryser", "rematch" ]
