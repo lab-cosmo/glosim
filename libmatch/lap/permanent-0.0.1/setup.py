@@ -10,11 +10,10 @@ setup(name             = "permanent",
       author_email     = "1sandipde@gmail.com",
       maintainer       = "1sandipde@gmail.com",
       url              = "https://github.com/sandipde/MCpermanent",
-      packages         = ["permanent"],
       ext_modules      = [
           Extension(
-              'permanent.permanent', ['./src/permanent.cpp'],
-              extra_compile_args=["-O3","-Ofast", "-march=native","-std=c++11"],
+              'permanent', ['./src/permanent.cpp'],
+              extra_compile_args=["-O3","-Ofast","-std=c++11"],
               include_dirs=[numpy.get_include()]),
       ],
 
