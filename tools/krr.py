@@ -142,6 +142,7 @@ def main(kernel, props, mode, trainfrac, csi, sigma, ntests, ttest, savevector="
         np.set_printoptions(threshold=10000)
         ntrain = int(trainfrac*nel)
         ntrue = int(ttest*nel)
+        print nel,ntrain,ntrue
 
         for itest in xrange(ntests):        
             ltest = np.zeros(nel-ntrain-ntrue,int)
@@ -170,7 +171,7 @@ def main(kernel, props, mode, trainfrac, csi, sigma, ntests, ttest, savevector="
                     dmax = 0
                     imax = 0       
                     for i in nontrue:
-                        dsel = np.sqrt(1.0-kij[i, isel])
+                        dsel = np.sqrt(kij[i,i]+kij[isel,isel]-2*kij[i,isel]) #don't assume kernel is normalised
                         if dsel < ldist[i]:
                            imin[i] = nsel-1                    
                            ldist[i] = dsel
@@ -182,7 +183,8 @@ def main(kernel, props, mode, trainfrac, csi, sigma, ntests, ttest, savevector="
                 
                 for i in xrange(nel):
                     if i in ltrue: continue                    
-                    dsel = np.sqrt(1.0-kij[i, isel])
+                    dsel = np.sqrt(kij[i,i]+kij[isel,isel]-2*kij[i, isel])
+                  #  dsel = np.sqrt(1.0-kij[i, isel])
                     if dsel < ldist[i]:
                         imin[i] = nsel-1
                         ldist[i] = dsel
