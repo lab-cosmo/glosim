@@ -14,6 +14,13 @@ except:
   print "matplotlib is not available. You will not be able to plot"
 
 from collections import Counter
+def list_elements(Z, i, n):
+   if Z[i,0]<n: l = [int(Z[i,0])]
+   else: l = list_elements(Z,int(Z[i,0])-n,n)
+   if Z[i,1]<n: r = [int(Z[i,1])]
+   else: r = list_elements(Z,int(Z[i,1])-n,n)
+   l.extend(r)
+   return l
 
 def main(distmatrixfile,dcut,mode='average',proplist='',plot=False,calc_sd=False,rect_matrixfile='',mtcia=False,verbose=False):
    project=False
@@ -26,11 +33,29 @@ def main(distmatrixfile,dcut,mode='average',proplist='',plot=False,calc_sd=False
          return
       project=True
    if proplist!='': prop=np.loadtxt(proplist)
-   sim2=sim*sim
+   # maxes the distance matrix into its hadamard square
+   sim*=sim
    print "Linking clusters"
-   Z=sc.linkage(sim2,mode)
-   if mtcia : mathematica_cluster(Z,sim,'cluster-mathematica.dat')
+   Z=sc.linkage(sim,mode)   
    n=len(sim)
+   ncls = len(Z)
+   pcls = np.zeros((ncls,2))
+   for icls in xrange(ncls):
+        # adjust linkage distance..
+        Z[icls,3] = np.sqrt(Z[icls,3])
+        lel = np.asarray(list_elements(Z,icls,n))
+        ni = len(lel)
+        subm = sim[np.ix_(lel, lel)]
+        dsum = np.sum(subm,axis=0)
+        
+        imin = np.argmin(dsum)
+        dmin = np.sqrt(dsum[imin]/ni)
+        
+        pcls[icls] = [lel[imin], dmin]
+        print icls, Z[icls], pcls[icls]
+   if mtcia : 
+       mathematica_cluster(Z,pcls,n,'cluster-mathematica.dat')
+
    print "Printing diagnostics"
    cdist=Z[:,2]
    if verbose : 
@@ -85,6 +110,8 @@ def main(distmatrixfile,dcut,mode='average',proplist='',plot=False,calc_sd=False
       rep_ind.append(iselect)
       print nconf, meand, np.sqrt(var), iselect, minvar, kurt, skewness, multimodal
 #   print rep_ind
+
+
    print "index of clusters"
    for i in structurelist:
       print "index=",i
@@ -180,8 +207,7 @@ def project_config(clusterlist,rect_matrix,rep_ind):
       project_rep.append(iselect)
   return(groupid,project_rep)
 
-def mathematica_cluster(Z,sim,fname):
-   n=len(sim)
+def mathematica_cluster(Z,pcls,n,fname):
    clusterlist=[]
    nlist=[]
    for i in range(len(Z)):
@@ -214,6 +240,8 @@ def mathematica_cluster(Z,sim,fname):
       cl.append('{:.8f}'.format(Z[i,2]))
       cl.append(n1)
       cl.append(n2)
+      cl.append(int(pcls[i,0]))
+      cl.append(pcls[i,1])
    #   tmp='Cluster'+str(cl)
    #   tmp.replace("'","")
    #   clusterlist.append(tmp)
