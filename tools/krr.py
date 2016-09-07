@@ -137,7 +137,7 @@ def main(kernel, props, mode, trainfrac, csi, sigma, ntests, ttest, savevector="
             rms=np.sqrt(((krp[:]-p[:])**2).sum()/len(p))
             sup=abs(krp[:]-p[:]).max()
             print "# train-set MAE: %f RMS: %f SUP: %f" % (mae, rms, sup)
-            ltrain = range(nel)            
+            ltain = range(nel)            
     else: 
         np.set_printoptions(threshold=10000)
         ntrain = int(trainfrac*nel)
@@ -170,6 +170,7 @@ def main(kernel, props, mode, trainfrac, csi, sigma, ntests, ttest, savevector="
                     dmax = 0
                     imax = 0       
                     for i in nontrue:
+#                        if i in ltrue: continue
                         dsel = np.sqrt(1.0-kij[i, isel])
                         if dsel < ldist[i]:
                            imin[i] = nsel-1                    

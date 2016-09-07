@@ -17,6 +17,7 @@ from collections import Counter
 
 def main(distmatrixfile,dcut,mode='average',proplist='',plot=False,calc_sd=False,rect_matrixfile='',mtcia=False,verbose=False):
    project=False
+   print "Loading similarity data"
    sim=np.loadtxt(distmatrixfile)
    if rect_matrixfile != '' :
       rect_matrix=np.loadtxt(rect_matrixfile)
@@ -26,9 +27,11 @@ def main(distmatrixfile,dcut,mode='average',proplist='',plot=False,calc_sd=False
       project=True
    if proplist!='': prop=np.loadtxt(proplist)
    sim2=sim*sim
+   print "Linking clusters"
    Z=sc.linkage(sim2,mode)
    if mtcia : mathematica_cluster(Z,sim,'cluster-mathematica.dat')
    n=len(sim)
+   print "Printing diagnostics"
    cdist=Z[:,2]
    if verbose : 
      np.savetxt('linkage.dat',Z)
@@ -64,15 +67,15 @@ def main(distmatrixfile,dcut,mode='average',proplist='',plot=False,calc_sd=False
            sumd+=sim2[ind1][ind2]
       meand=np.sqrt(sumd/(nconf*nconf))
       
-      # pick the configuration with min variance in the group
-      minvar=9999
+      # pick the configuration with min mean distance variance in the group
+      minvar=1e100
       var=0.0
       for iconf in range(len(indices)):
         ivar=0.0
         ind1=indices[iconf]
         for jconf in range(len(indices)):
           ind2=indices[jconf]
-          ivar+=(sim2[ind1][ind2]-meand**2)**2
+          ivar+=sim2[ind1][ind2]**2
         ivar=ivar/nconf
         var+=ivar  
         if(ivar<minvar):  
@@ -80,7 +83,7 @@ def main(distmatrixfile,dcut,mode='average',proplist='',plot=False,calc_sd=False
           iselect=ind1
       var=var/nconf  
       rep_ind.append(iselect)
-      print nconf, meand , np.sqrt(var) , iselect ,kurt, skewness, multimodal
+      print nconf, meand, np.sqrt(var), iselect, minvar, kurt, skewness, multimodal
 #   print rep_ind
    print "index of clusters"
    for i in structurelist:

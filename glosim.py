@@ -301,12 +301,12 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
         sim = np.zeros((nf,nf_ref))
         sys.stderr.write("Computing Similarity Matrix           \n")
         if (partialsim): 
-          pfkernel=open(prefix+"_rect.k.partial","w")
-          pfkernel.write("# OOS Kernel matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)) )
-          if (usekit):pfkernel.write( " Using reference kit: %s " % (str(kit)) )
-          if (alchemyrules!="none"):pfkernel.write( " Using alchemy rules: %s " % (alchemyrules) )
-          if (kmode=="rematch"): pfkernel.write( " Regularized parameter: %f " % (reggamma) )
-          pfkernel.write("\n")
+            pfkernel=open(prefix+"_rect.k.partial","w")
+            pfkernel.write("# OOS Kernel matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)) )
+            if (usekit):pfkernel.write( " Using reference kit: %s " % (str(kit)) )
+            if (alchemyrules!="none"):pfkernel.write( " Using alchemy rules: %s " % (alchemyrules) )
+            if (kmode=="rematch"): pfkernel.write( " Regularized parameter: %f " % (reggamma) )
+            pfkernel.write("\n")
         
         if (nprocs<=1):
          for iframe in range(nf):
