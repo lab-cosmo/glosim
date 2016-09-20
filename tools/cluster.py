@@ -4,6 +4,7 @@ import numpy as np
 import sys
 import numpy as np
 import scipy.cluster.hierarchy as sc
+import scipy.spatial.distance as sd
 import itertools
 from scipy.stats import kurtosis,skew
 from scipy.stats.mstats import kurtosistest
@@ -34,15 +35,18 @@ def main(distmatrixfile,dcut,mode='average',proplist='',plot=False,calc_sd=False
       project=True
    if proplist!='': prop=np.loadtxt(proplist)
    # maxes the distance matrix into its hadamard square
+   print "Squaring the matrix"   
    sim*=sim
+   print "Selecting the upper triangular bit"
+   vsim = sd.squareform(sim,checks=False)
    print "Linking clusters"
-   Z=sc.linkage(sim,mode)   
+   Z=sc.linkage(vsim,mode)   
    n=len(sim)
    ncls = len(Z)
    pcls = np.zeros((ncls,2))
    for icls in xrange(ncls):
         # adjust linkage distance..
-        Z[icls,3] = np.sqrt(Z[icls,3])
+        Z[icls,2] = np.sqrt(Z[icls,2])
         lel = np.asarray(list_elements(Z,icls,n))
         ni = len(lel)
         subm = sim[np.ix_(lel, lel)]
@@ -215,7 +219,7 @@ def mathematica_cluster(Z,pcls,n,fname):
     id2=int(Z[i,1])
     if((id1 < n) and (id2<n)):  # when two configurations are merged note their index
        # in mathematica cluster index should start from 1 so '+1'
-       clusterlist.append([int(id1+1),int(id2+1),'{:.8f}'.format(Z[i,2]),1,1])
+       clusterlist.append([int(id1+1),int(id2+1),'{:.8f}'.format(Z[i,2]),1,1,int(id1+1),'{:.8f}'.format(Z[i,2])])
        nlist.append(2)
        #ncluster+=1
     else:
@@ -240,7 +244,7 @@ def mathematica_cluster(Z,pcls,n,fname):
       cl.append('{:.8f}'.format(Z[i,2]))
       cl.append(n1)
       cl.append(n2)
-      cl.append(int(pcls[i,0]))
+      cl.append(int(pcls[i,0])+1)
       cl.append(pcls[i,1])
    #   tmp='Cluster'+str(cl)
    #   tmp.replace("'","")
@@ -251,7 +255,7 @@ def mathematica_cluster(Z,pcls,n,fname):
    # get the final nested cluster structure and put
    # the mathematica Cluster statement
    clusterliststr = str(clusterlist[n-2])
-   clusterliststr = clusterliststr.replace("[","Cluster[")
+   clusterliststr = clusterliststr.replace("[","XCluster[")
    clusterliststr = clusterliststr.replace("'","")
    # print a.replace("[","Cluster[")
    fmathematica=open(fname,'w')

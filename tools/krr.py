@@ -249,7 +249,7 @@ if __name__ == '__main__':
                            
     parser.add_argument("kernel", nargs=1, help="Kernel matrix")      
     parser.add_argument("props", nargs=1, help="Property file")
-    parser.add_argument("--mode", type=str, default="random", help="Train point selection (e.g. --mode all / random / fps / cur")      
+    parser.add_argument("--mode", type=str, default="random", help="Train point selection (e.g. --mode all / sequential / random / fps / cur")      
     parser.add_argument("-f", type=float, default='0.5', help="Train fraction")
     parser.add_argument("--truetest", type=float, default='0.0', help="Take these points out from the selection procedure")
     parser.add_argument("--csi", type=float, default='1.0', help="Kernel scaling")
