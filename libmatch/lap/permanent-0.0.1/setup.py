@@ -13,7 +13,7 @@ setup(name             = "permanent",
       ext_modules      = [
           Extension(
               'permanent', ['./src/permanent.cpp'],
-              extra_compile_args=["-O3","-Ofast","-std=c++11"],
+              extra_compile_args=["-O3","-std=c++0x"],
               include_dirs=[numpy.get_include()]),
       ],
 
