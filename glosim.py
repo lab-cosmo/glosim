@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # Computes the matrix of similarities between structures in a xyz file
 # by first getting SOAP descriptors for all environments, finding the best
 # match between environments using the Hungarian algorithm, and finally

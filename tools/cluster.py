@@ -93,7 +93,7 @@ def main(distmatrixfile,dcut,mode='average',proplist='',plot=False,calc_sd=False
          ind1=indices[iconf]
          for jconf in range(len(indices)):
            ind2=indices[jconf]
-           sumd+=sim2[ind1][ind2]
+           sumd+=sim[ind1][ind2]
       meand=np.sqrt(sumd/(nconf*nconf))
       
       # pick the configuration with min mean distance variance in the group
@@ -104,7 +104,7 @@ def main(distmatrixfile,dcut,mode='average',proplist='',plot=False,calc_sd=False
         ind1=indices[iconf]
         for jconf in range(len(indices)):
           ind2=indices[jconf]
-          ivar+=sim2[ind1][ind2]**2
+          ivar+=sim[ind1][ind2]**2
         ivar=ivar/nconf
         var+=ivar  
         if(ivar<minvar):  
@@ -144,7 +144,7 @@ def main(distmatrixfile,dcut,mode='average',proplist='',plot=False,calc_sd=False
      if proplist!='':f.write("prop_sd ")
      f.write("representative config")
      f.write("\n")
-     sim_sd,rep_index=dissimilarity_sd(Z,sim2) 
+     sim_sd,rep_index=dissimilarity_sd(Z,sim) 
      if proplist!='': psd=prop_sd(Z,prop,verbose)
      for i in range(len(Z)):
          f.write("%f" %(sim_sd[i]))
