@@ -28,7 +28,7 @@ def flush(stream):
     os.fsync(stream)
    
 
-def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, permanenteps, reggamma, nocenter, envsim, noatom, nprocs, verbose=False, envij=None, usekit=False, kit="auto", alchemyrules="none",prefix="",nlandmark=0, printsim=False,ref_xyz="",partialsim=False,lowmem=False,restartflag=False):
+def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, permanenteps, reggamma, nocenter, envsim, noatom, nprocs, verbose=False, envij=None, usekit=False, kit="auto", alchemyrules="none",prefix="",nlandmark=0, printsim=False,ref_xyz="",partialsim=False,lowmem=False,restartflag=False, kcsi=1.0):
     start_time = datetime.now()
     print >>sys.stderr, "          TIME:  ", ctime() ;
     print >>sys.stderr, "        ___  __    _____  ___  ____  __  __ ";
@@ -198,7 +198,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
                             slog.write("\n")
             else:
                fii = None
-            sii,senvii = structk(si, si, alchem, periodic, mode=kmode, fout=fii, peps=permanenteps, gamma=reggamma)        
+            sii,senvii = structk(si, si, alchem, periodic, mode=kmode, fout=fii, peps=permanenteps, gamma=reggamma, csi=kcsi)        
              
             if fl_envsim:
               simenv[icount*nenv:icount*nenv+nenv,icount*nenv:icount*nenv+nenv]=senvii
@@ -287,7 +287,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
                                 for sj in s:
                                     slogref.write("%8.4e " %(sj))
                                 slogref.write("\n")
-                sii,senvii = structk(si, si, alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma)        
+                sii,senvii = structk(si, si, alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma, csi=kcsi)        
                 if fl_envsim:
                       simenv[iframe*nenv:iframe*nenv+nenv,iframe*nenv:iframe*nenv+nenv]=senvii
                 nrm_ref[iframe]=sii        
@@ -314,7 +314,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
            sys.stderr.write("Matrix row %d                           \r" % (iframe))
            sli=sl[iframe]
            for jframe in range(nf_ref):
-             sij,senvij = structk(sli, sl_ref[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma)
+             sij,senvij = structk(sli, sl_ref[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma, csi=kcsi)
              if not nonorm: sij/=np.sqrt(nrm[iframe]*nrm_ref[jframe])
              sim[iframe][jframe]=sij
          if(partialsim):
@@ -328,7 +328,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
                     sys.stderr.write("Matrix row %d                           \r" % (iframe))           
                     sli=sl[iframe]  
                     for jframe in range(nf_ref):
-                        sij,senvij = structk(sli, sl_ref[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma)
+                        sij,senvij = structk(sli, sl_ref[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma, csi=kcsi)
                         if not nonorm: sij/=np.sqrt(nrm[iframe]*nrm_ref[jframe])
                         psim[iframe*nf_ref+jframe]=sij
             psim = Array('d', nf_ref*nf, lock=False)
@@ -466,7 +466,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
             landmarks.append(iframe)
             sli=sl[iframe]
             for jframe in range(nf):            
-                sij,senvij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, fout=None,peps = permanenteps, gamma=reggamma)
+                sij,senvij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, fout=None,peps = permanenteps, gamma=reggamma, csi=kcsi)
                 if not nonorm: 
                        sij/=np.sqrt(nrm[iframe]*nrm[jframe])
                        dist_list[jframe] = np.sqrt(abs(2.0-2.0*sij)) # use kernel metric
@@ -506,7 +506,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
             sli = sl[iframe]
             if (nprocs<=1):
               for jframe in range(nf):                
-                sij,senvij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma)
+                sij,senvij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma, csi=kcsi)
                 # normalize the kernel
                 if not nonorm: 
                        sij/=np.sqrt(nrm[iframe]*nrm[jframe])
@@ -527,7 +527,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
 		      # multiple processors
               def docol(pdist, psim, iframe, nf, nproc, iproc):
                   for jframe in range(iproc, nf, nproc):                                
-                     sij,senvij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma)
+                     sij,senvij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma, csi=kcsi)
                      if not nonorm: 
                             sij/=np.sqrt(nrm[iframe]*nrm[jframe])
                             dij = np.sqrt(abs(2-2*sij)) # use kernel metric
@@ -661,7 +661,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
                         fij = open(prefix+".environ-"+str(iframe)+"-"+str(jframe)+".dat", "w")
                     else: fij = None
                     # if periodic: sys.stderr.write("comparing %3d, atoms cell with  %3d atoms cell: lcm: %3d \r" % (sl[iframe].nenv, sl[jframe].nenv, lcm(sl[iframe].nenv,sl[jframe].nenv))) 
-                    sij,senvij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, fout=fij, peps = permanenteps, gamma=reggamma)          
+                    sij,senvij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, fout=fij, peps = permanenteps, gamma=reggamma, csi=kcsi)
                     if not nonorm: sij/=np.sqrt(nrm[iframe]*nrm[jframe])
                     sim[iframe][jframe]=sim[jframe][iframe]=sij
                     if fl_envsim:
@@ -679,7 +679,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
               sli=sl[iframe] 
               def dorow(irow,nf,nprocs,iproc, psim):
                 for jframe in range(iproc,nf,nprocs):
-                    sij,senvij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, peps = permanenteps, gamma=reggamma)          
+                    sij,senvij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, peps = permanenteps, gamma=reggamma, csi=kcsi)
                     if not nonorm: sij/=np.sqrt(nrm[irow]*nrm[jframe])  
                     psim[jframe]=sij
               proclist = []   
@@ -739,7 +739,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
             for iframe in range(0,nf):
                 for jframe in range(0,nf):
                # for x in sim[iframe][0:nf]:
-                    fsim.write("%16.8e " % (np.sqrt(abs(sim[iframe][iframe]+sim[iframe][jframe]-2*sim[iframe][jframe]))))
+                    fsim.write("%16.8e " % (np.sqrt(abs(sim[iframe][iframe]+sim[jframe][jframe]-2*sim[iframe][jframe]))))
                 fsim.write("\n") 
 
         if fl_envsim:
@@ -779,6 +779,7 @@ if __name__ == '__main__':
       parser.add_argument("--mu", type=float, default='0.0', help="Extra penalty for comparing to missing atoms")
       parser.add_argument("--usekit", action="store_true", help="Computes the least commond denominator of all structures and uses that as a reference state")      
       parser.add_argument("--gamma", type=float, default="1.0", help="Regularization for entropy-smoothed best-match kernel")
+      parser.add_argument("--kcsi", type=float, default="1.0", help="Exponent for the atomic SOAP kernel")
       parser.add_argument("--kit", type=str, default="auto", help="Dictionary-style kit specification (e.g. --kit '{4:1,6:10}'")
       parser.add_argument("--alchemy_rules", type=str, default="none", help='Dictionary-style rule specification in quote (e.g. --alchemy_rules "{(6,7):1,(6,8):1}"')
       parser.add_argument("--kernel", type=str, default="match", help="Global kernel mode (e.g. --kernel average / match / rematch")      
@@ -817,4 +818,4 @@ if __name__ == '__main__':
       else:
          envij=tuple(map(int,args.ij.split(",")))
                   
-      main(args.filename, nd=args.n, ld=args.l, coff=args.c, gs=args.g, mu=args.mu, centerweight=args.cw, periodic=args.periodic, usekit=args.usekit, kit=args.kit,alchemyrules=args.alchemy_rules, kmode=args.kernel, nonorm=args.nonorm, permanenteps=args.permanenteps, reggamma=args.gamma, noatom=noatom, nocenter=nocenter, envsim=args.envsim, nprocs=args.np, verbose=args.verbose, envij=envij, prefix=args.prefix, nlandmark=args.nlandmarks, printsim=args.distance,ref_xyz=args.refxyz,partialsim=args.livek,lowmem=args.lowmem,restartflag=args.restart)
+      main(args.filename, nd=args.n, ld=args.l, coff=args.c, gs=args.g, mu=args.mu, centerweight=args.cw, periodic=args.periodic, usekit=args.usekit, kit=args.kit,alchemyrules=args.alchemy_rules, kmode=args.kernel, nonorm=args.nonorm, permanenteps=args.permanenteps, reggamma=args.gamma, noatom=noatom, nocenter=nocenter, envsim=args.envsim, nprocs=args.np, verbose=args.verbose, envij=envij, prefix=args.prefix, nlandmark=args.nlandmarks, printsim=args.distance,ref_xyz=args.refxyz,partialsim=args.livek,lowmem=args.lowmem,restartflag=args.restart, kcsi=args.csi)

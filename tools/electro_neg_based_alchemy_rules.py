@@ -66,7 +66,7 @@ def main(delta,splist,alchemyrules):
 if __name__ == '__main__':
       parser = argparse.ArgumentParser(description="""Utility code to generate alchemy rules based on electronegetivity.""")
 
-      parser.add_argument("--delta",type=float,default="1.0", help="delta value in  exp(-0.5*(Elec_neg[sa] -Elec_neg[sb]/delta)**2) ")
+      parser.add_argument("--delta",type=float,default="1.0", help="delta value in  exp(-0.5*((Elec_neg[sa] -Elec_neg[sb])/delta)**2) ")
       parser.add_argument("--species", type=str, default="all", help="list of species (e.g. --species 1,6  for H and C )")
       parser.add_argument("--rules", type=str, default="none", help='Dictionary-style rule specification in quote (e.g. --rules "{(6,7):1,(6,8):1}"')
       args = parser.parse_args()
