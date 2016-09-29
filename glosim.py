@@ -336,13 +336,13 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
                 while(len(proclist)>=nprocs):
                     for ip in proclist:
                         if not ip.is_alive(): proclist.remove(ip)
-                        time.sleep(0.01)
+                        time.sleep(0.001)
                 sp = Process(target=dorow, name="doframe proc", kwargs={"irow":iframe,"nf_ref":nf_ref, "nprocs":nprocs,"iproc":iproc, "psim": psim})
                 proclist.append(sp)
                 sp.start()
                 sys.stderr.write("Matrix row %d, %d active processes     \r" % (iframe, len(proclist)))
               for ip in proclist:
-                   while ip.is_alive(): ip.join(0.1)
+                   while ip.is_alive(): ip.join(0.01)
                    if ip.exitcode != 0 :
                      raise ValueError("Invalid exit status for one of the child processes!")
               for jframe in range(0,nf_ref):
@@ -705,7 +705,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
                 sp.start()
                 sys.stderr.write("Matrix row %d, %d active processes     \r" % (iframe, len(proclist)))
               for ip in proclist:
-                   while ip.is_alive(): ip.join(0.1)  
+                   while ip.is_alive(): ip.join(0.01)  
                    if ip.exitcode != 0 :
                      raise ValueError("Invalid exit status for one of the child processes!")
               for jframe in range(0,iframe):
