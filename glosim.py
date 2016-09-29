@@ -323,36 +323,28 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
               pfkernel.write("\n")
               flush(pfkernel)
         else:    
-            for iframe in range (0,nf):
-              sli=sl[iframe]  
-              def dorow(irow,nf_ref,nprocs,iproc, psim):
-                for jframe in range(iproc,nf_ref,nprocs):
-                    sij,senvij = structk(sli, sl_ref[jframe], alchem, periodic, mode=kmode,fout=None, peps = permanenteps, gamma=reggamma)
-                    if not nonorm: sij/=np.sqrt(nrm[irow]*nrm_ref[jframe])                        
-                    psim[jframe]= sij
-              proclist = []
-              psim = Array('d', nf_ref, lock=False)
-              for iproc in range (nprocs):
-                while(len(proclist)>=nprocs):
-                    for ip in proclist:
-                        if not ip.is_alive(): proclist.remove(ip)
-                        time.sleep(0.001)
-                sp = Process(target=dorow, name="doframe proc", kwargs={"irow":iframe,"nf_ref":nf_ref, "nprocs":nprocs,"iproc":iproc, "psim": psim})
+            def dochunk(psim, iproc, nprocs):
+                for iframe in range (iproc,nf,nprocs):
+                    sys.stderr.write("Matrix row %d                           \r" % (iframe))           
+                    sli=sl[iframe]  
+                    for jframe in range(nf_ref):
+                        sij,senvij = structk(sli, sl_ref[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma)
+                        if not nonorm: sij/=np.sqrt(nrm[iframe]*nrm_ref[jframe])
+                        psim[iframe*nf_ref+jframe]=sij
+            psim = Array('d', nf_ref*nf, lock=False)
+            proclist=[]
+            for iproc in range (nprocs):    
+                sp = Process(target=dochunk, name="doframe proc", kwargs={"nprocs":nprocs,"iproc":iproc, "psim": psim})
                 proclist.append(sp)
                 sp.start()
-                sys.stderr.write("Matrix row %d, %d active processes     \r" % (iframe, len(proclist)))
-              for ip in proclist:
+            for ip in proclist:
                    while ip.is_alive(): ip.join(0.01)
                    if ip.exitcode != 0 :
                      raise ValueError("Invalid exit status for one of the child processes!")
-              for jframe in range(0,nf_ref):
-                    sim[iframe,jframe]=psim[jframe]
-              if(partialsim):
-                  for x in sim[iframe,:]:
-                    pfkernel.write("%20.12e " % (x))
-                  pfkernel.write("\n")
-                  flush(pfkernel)
-
+            for iframe in range(nf):
+                for jframe in range(0,nf_ref):
+                    sim[iframe,jframe]=psim[jframe+iframe*nf_ref]
+            
         if(partialsim):pfkernel.close()
         fkernel = open(prefix+"_rect.k", "w")  
         fkernel.write("# OOS Kernel matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)) )
