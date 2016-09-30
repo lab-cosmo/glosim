@@ -675,38 +675,60 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
                   flush(pfkernel)
         else:      
             # multiple processors
-            for iframe in range (nf):   
-              sli=sl[iframe] 
-              def dorow(irow,nf,nprocs,iproc, psim):
-                for jframe in range(iproc,nf,nprocs):
-                    sij,senvij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, peps = permanenteps, gamma=reggamma, csi=kcsi)
-                    if not nonorm: sij/=np.sqrt(nrm[irow]*nrm[jframe])  
-                    psim[jframe]=sij
-              proclist = []   
-              psim = Array('d', nf, lock=False)      
-              if nonorm: sim[iframe,iframe] = nrm[iframe]
-              else: sim[iframe,iframe] = 1
+            psim = Array('d', nf*nf, lock=False)   
+            def dochunk(psim, iproc, nprocs):
+                for iframe in range(iproc, nf, nprocs):
+                    sli=sl[iframe] 
+                    sys.stderr.write("Matrix row %d %d    \r" % (iproc, iframe))
+                    for jframe in range(0,iframe):
+                        sij,senvij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, peps = permanenteps, gamma=reggamma, csi=kcsi)
+                        if not nonorm: sij/=np.sqrt(nrm[irow]*nrm[jframe])
+                        psim[jframe+iframe*nf]=sij
+            proclist = []   
+            for iproc in range(nprocs):
+                sp = Process(target=dochunk, name="dochunk proc", kwargs={"nprocs":nprocs,"iproc":iproc, "psim": psim})  
+            for ip in proclist:
+                while ip.is_alive(): ip.join(0.01)  
+                if ip.exitcode != 0 :
+                    raise ValueError("Invalid exit status for one of the child processes!")
+                       
+            for iframe in range(nf):
+                if nonorm: sim[iframe,iframe]=nrm[iframe]
+                else: sim[iframe,iframe]=1.0 
+                for jframe in range(0,iframe):
+                    sim[iframe,jframe]=sim[jframe,iframe]=psim[jframe+iframe*nf]
+            #~ for iframe in range (nf):   
+              #~ sli=sl[iframe] 
+              #~ def dorow(irow,nf,nprocs,iproc, psim):
+                #~ for jframe in range(iproc,nf,nprocs):
+                    #~ sij,senvij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, peps = permanenteps, gamma=reggamma, csi=kcsi)
+                    #~ if not nonorm: sij/=np.sqrt(nrm[irow]*nrm[jframe])  
+                    #~ psim[jframe]=sij
+              #~ proclist = []   
+              #~ psim = Array('d', nf, lock=False)      
+              #~ if nonorm: sim[iframe,iframe] = nrm[iframe]
+              #~ else: sim[iframe,iframe] = 1
               
-              for iproc in range (nprocs):
-                while(len(proclist)>=nprocs):
-                    for ip in proclist:
-                        if not ip.is_alive(): proclist.remove(ip)            
-                        time.sleep(0.01)
-                sp = Process(target=dorow, name="doframe proc", kwargs={"irow":iframe,"nf":iframe, "nprocs":nprocs,"iproc":iproc, "psim": psim})  
-                proclist.append(sp)
-                sp.start()
-                sys.stderr.write("Matrix row %d, %d active processes     \r" % (iframe, len(proclist)))
-              for ip in proclist:
-                   while ip.is_alive(): ip.join(0.01)  
-                   if ip.exitcode != 0 :
-                     raise ValueError("Invalid exit status for one of the child processes!")
-              for jframe in range(0,iframe):
-                    sim[iframe,jframe]=sim[jframe,iframe]=psim[jframe]
-              if(partialsim):
-                  for x in sim[iframe,0:iframe]:
-                    pfkernel.write("%20.12e " % (x))
-                  pfkernel.write("\n")
-                  flush(pfkernel)
+              #~ for iproc in range (nprocs):
+                #~ while(len(proclist)>=nprocs):
+                    #~ for ip in proclist:
+                        #~ if not ip.is_alive(): proclist.remove(ip)            
+                        #~ time.sleep(0.01)
+                #~ sp = Process(target=dorow, name="doframe proc", kwargs={"irow":iframe,"nf":iframe, "nprocs":nprocs,"iproc":iproc, "psim": psim})  
+                #~ proclist.append(sp)
+                #~ sp.start()
+                #~ sys.stderr.write("Matrix row %d, %d active processes     \r" % (iframe, len(proclist)))
+              #~ for ip in proclist:
+                   #~ while ip.is_alive(): ip.join(0.01)  
+                   #~ if ip.exitcode != 0 :
+                     #~ raise ValueError("Invalid exit status for one of the child processes!")
+              #~ for jframe in range(0,iframe):
+                    #~ sim[iframe,jframe]=sim[jframe,iframe]=psim[jframe]
+              #~ if(partialsim):
+                  #~ for x in sim[iframe,0:iframe]:
+                    #~ pfkernel.write("%20.12e " % (x))
+                  #~ pfkernel.write("\n")
+                  #~ flush(pfkernel)
             
             # waits for all threads to finish
             #for ip in proclist:
