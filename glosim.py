@@ -687,6 +687,8 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
             proclist = []   
             for iproc in range(nprocs):
                 sp = Process(target=dochunk, name="dochunk proc", kwargs={"nprocs":nprocs,"iproc":iproc, "psim": psim})  
+                proclist.append(sp)
+                sp.start()
             for ip in proclist:
                 while ip.is_alive(): ip.join(0.01)  
                 if ip.exitcode != 0 :
