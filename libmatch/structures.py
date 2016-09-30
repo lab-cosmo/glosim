@@ -144,7 +144,7 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
    #   permanent: average over all permutations
       
    # average kernel. quick & easy!   
-   if mode=="average":
+   if mode=="fastavg":
        genvA=strucA.globenv
        genvB=strucB.globenv        
        return envk(genvA, genvB, alchem)**csi, 0
@@ -269,6 +269,8 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
    elif mode == "rematch":
        cost=rematch(kk, gamma, 1e-6)  # hard-coded residual error for regularized gamma
        # print cost, kk.sum()/(nenv*nenv), envk(strucA.globenv, strucB.globenv, alchem)
+    elif mode == "average":
+       cost = kk.sum()/(nenvA*nenvB)
    else: raise ValueError("Unknown global fingerprint mode ", mode)
    
          

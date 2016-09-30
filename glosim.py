@@ -180,7 +180,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
                 si.parse(at, coff, nd, ld, gs, centerweight, nocenter, noatom, kit = kit)       
                 
                 # discard the list of all environments if they are not needed for this calculation
-                if kmode == "average" and not verbose: 
+                if kmode == "fastavg" and not verbose: 
                     si.env = []
                 sl.append(si)
             if verbose:
@@ -272,7 +272,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
                 else:
                     si = structure(alchem)
                     si.parse(at, coff, nd, ld, gs, centerweight, nocenter, noatom, kit = kit)
-                    if kmode == "average" and not verbose: 
+                    if kmode == "fastavg" and not verbose: 
                         si.env = []
                     sl_ref.append(si)
                 if verbose:
@@ -782,7 +782,7 @@ if __name__ == '__main__':
       parser.add_argument("--kcsi", type=float, default="1.0", help="Exponent for the atomic SOAP kernel")
       parser.add_argument("--kit", type=str, default="auto", help="Dictionary-style kit specification (e.g. --kit '{4:1,6:10}'")
       parser.add_argument("--alchemy_rules", type=str, default="none", help='Dictionary-style rule specification in quote (e.g. --alchemy_rules "{(6,7):1,(6,8):1}"')
-      parser.add_argument("--kernel", type=str, default="match", help="Global kernel mode (e.g. --kernel average / match / rematch")      
+      parser.add_argument("--kernel", type=str, default="match", help="Global kernel mode (e.g. --kernel average / match / rematch / species / fastavg ")      
       parser.add_argument("--nonorm",  action="store_true", help="Does not normalize structural kernels")   
       parser.add_argument("--permanenteps", type=float, default="0.0", help="Tolerance level for approximate permanent (e.g. --permanenteps 1e-4")     
       parser.add_argument("--distance", action="store_true", help="Also prints out similarity (as kernel distance)")
