@@ -269,7 +269,7 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
    elif mode == "rematch":
        cost=rematch(kk, gamma, 1e-6)  # hard-coded residual error for regularized gamma
        # print cost, kk.sum()/(nenv*nenv), envk(strucA.globenv, strucB.globenv, alchem)
-    elif mode == "average":
+   elif mode == "average":
        cost = kk.sum()/(nenvA*nenvB)
    else: raise ValueError("Unknown global fingerprint mode ", mode)
    
