@@ -124,6 +124,9 @@ def main(kernel, props, mode, trainfrac, csi, sigma, ntests, ttest, savevector="
     ctrue=0
     
     vp = np.var(p)    
+    
+    if mode=="manual":
+        mtrain = np.loadxyz("train.idx")
 #    kij *= vp    
     if mode == "all" :
             tp = p[:]
@@ -141,8 +144,8 @@ def main(kernel, props, mode, trainfrac, csi, sigma, ntests, ttest, savevector="
     else: 
         np.set_printoptions(threshold=10000)
         ntrain = int(trainfrac*nel)
-        ntrue = int(ttest*nel)
-        print nel,ntrain,ntrue
+        if mode == "manual": ntrain=len(mtrain)
+        ntrue = int(ttest*nel)        
 
         for itest in xrange(ntests):        
             ltest = np.zeros(nel-ntrain-ntrue,int)
@@ -156,6 +159,8 @@ def main(kernel, props, mode, trainfrac, csi, sigma, ntests, ttest, savevector="
                 psel[ltrue] = 0.0
             if mode == "random":
                 ltrain[:] = randomsubset(nel, ntrain, psel)
+            elif mode == "manual":
+                ltrain[:] = mtrain
             elif mode == "sequential":
                 ltrain[:] = range(ntrain)
             elif mode == "fps":            
@@ -249,7 +254,7 @@ if __name__ == '__main__':
                            
     parser.add_argument("kernel", nargs=1, help="Kernel matrix")      
     parser.add_argument("props", nargs=1, help="Property file")
-    parser.add_argument("--mode", type=str, default="random", help="Train point selection (e.g. --mode all / sequential / random / fps / cur")      
+    parser.add_argument("--mode", type=str, default="random", help="Train point selection (e.g. --mode all / sequential / random / fps / cur / manual")      
     parser.add_argument("-f", type=float, default='0.5', help="Train fraction")
     parser.add_argument("--truetest", type=float, default='0.0', help="Take these points out from the selection procedure")
     parser.add_argument("--csi", type=float, default='1.0', help="Kernel scaling")
