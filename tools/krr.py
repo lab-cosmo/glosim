@@ -126,7 +126,7 @@ def main(kernel, props, mode, trainfrac, csi, sigma, ntests, ttest, savevector="
     vp = np.var(p)    
     
     if mode=="manual":
-        mtrain = np.loadxyz("train.idx")
+        mtrain = np.loadtxt("train.idx")
 #    kij *= vp    
     if mode == "all" :
             tp = p[:]
