@@ -41,6 +41,11 @@ def main(distmatrixfile,dcut,mode='average',proplist='',plot=False,calc_sd=False
    vsim = sd.squareform(sim,checks=False)
    print "Linking clusters"
    Z=sc.linkage(vsim,mode)   
+   header="Cluster linkage matrix for distance matrix file: " + distmatrixfile +" clustering mode= " +mode
+   linkfile=distmatrixfile[:-4]+"-cluster_linkage.dat"
+   np.savetxt(linkfile,Z,header=header)
+   return
+
    n=len(sim)
    ncls = len(Z)
    pcls = np.zeros((ncls,2))
