@@ -126,7 +126,7 @@ def main(kernel, props, mode, trainfrac, csi, sigma, ntests, ttest, savevector="
     vp = np.var(p)    
     
     if mode=="manual":
-        mtrain = np.loadxyz("train.idx")
+        mtrain = np.loadtxt("train.idx")
 #    kij *= vp    
     if mode == "all" :
             tp = p[:]
@@ -140,7 +140,7 @@ def main(kernel, props, mode, trainfrac, csi, sigma, ntests, ttest, savevector="
             rms=np.sqrt(((krp[:]-p[:])**2).sum()/len(p))
             sup=abs(krp[:]-p[:]).max()
             print "# train-set MAE: %f RMS: %f SUP: %f" % (mae, rms, sup)
-            ltain = range(nel)            
+            ltrain = range(nel)            
     else: 
         np.set_printoptions(threshold=10000)
         ntrain = int(trainfrac*nel)

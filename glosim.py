@@ -682,7 +682,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
                     sys.stderr.write("Matrix row %d %d    \r" % (iproc, iframe))
                     for jframe in range(0,iframe):
                         sij,senvij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, peps = permanenteps, gamma=reggamma, csi=kcsi)
-                        if not nonorm: sij/=np.sqrt(nrm[irow]*nrm[jframe])
+                        if not nonorm: sij/=np.sqrt(nrm[iframe]*nrm[jframe])
                         psim[jframe+iframe*nf]=sij
             proclist = []   
             for iproc in range(nprocs):
