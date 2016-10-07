@@ -246,7 +246,7 @@ def main(kernel, props, mode, trainfrac, csi, sigma, ntests, ttest, savevector="
     if savevector:
         fname=open(savevector,'w')
         commentline=' Train Vector from kernel matrix: '+kernel+' and properties from '+ props + ' selection mode: '+mode+' : Csi, sigma = ' + str(csi) +' , '+ str(sigma)
-        np.savetxt(fname,np.asarray([tc, ltrain, rlabs[ltrain]]).T,fmt=("%15.7e", "%10d", "%10d"),header=commentline)
+        np.savetxt(fname,np.asarray([tc, ltrain, rlabs[ltrain]]).T,fmt=("%24.15e", "%10d", "%10d"),header=commentline)
         fname.close()
 
 if __name__ == '__main__':
