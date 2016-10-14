@@ -123,11 +123,8 @@ def main(kernel, props, mode, trainfrac, csi, sigma, ntests, ttest, savevector="
     ctest=0
     ctrue=0
     
-    vp = np.var(p)    
-    
     if mode=="manual":
         mtrain = np.loadtxt("train.idx")
-#    kij *= vp    
     if mode == "all" :
             tp = p[:]
             tk = kij[:][:].copy()
@@ -203,10 +200,18 @@ def main(kernel, props, mode, trainfrac, csi, sigma, ntests, ttest, savevector="
                     k += 1
                 
             tp = p[ltrain]
+            vp = np.var(tp) # variance of the property subset (to be size consistent!)            
             tk = kij[ltrain][:,ltrain].copy()
+            vk = np.trace(tk)/len(ltrain)
+            # the kernel should represent the variance of the energy (in a GAP interpretation) 
+            # and sigma^2 the estimate of the noise variance. However we want to keep a "naked kernel" so
+            # we can then estimate without bringing around the variance. So the problem would be
+            # (vp*N/Tr(tk) tk + sigma^2 I )^-1 p = w
+            # but equivalently we can write 
+            # ( tk + sigma^2 *tr(tk)/(N vp) I )^-1 p = w            
             #print lweight
             for i in xrange(len(ltrain)):
-                tk[i,i]+=sigma #/ lweight[i]  # diagonal regularization times weight!
+                tk[i,i]+=sigma**2 * vk/vp #/ lweight[i]  # diagonal regularization times weight!
             tc = np.linalg.solve(tk, tp)
             krp = np.dot(kij[:,ltrain],tc)   
 
@@ -258,7 +263,7 @@ if __name__ == '__main__':
     parser.add_argument("-f", type=float, default='0.5', help="Train fraction")
     parser.add_argument("--truetest", type=float, default='0.0', help="Take these points out from the selection procedure")
     parser.add_argument("--csi", type=float, default='1.0', help="Kernel scaling")
-    parser.add_argument("--sigma", type=float, default='1e-3', help="Sigma")
+    parser.add_argument("--sigma", type=float, default='1e-3', help="KRR regularization. In units of the properties. ")
     parser.add_argument("--ntests", type=int, default='1', help="Number of tests")
     parser.add_argument("--refindex",  type=str, default="", help="Structure indices of the kernel matrix (useful when dealing with a subset of a larger structures file)")        
     parser.add_argument("--saveweights",  type=str, default="", help="Save the train-set weights vector in file")    
