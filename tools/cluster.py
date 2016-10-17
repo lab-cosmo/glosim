@@ -44,7 +44,6 @@ def main(distmatrixfile,dcut,mode='average',proplist='',plot=False,calc_sd=False
    header="Cluster linkage matrix for distance matrix file: " + distmatrixfile +" clustering mode= " +mode
    linkfile=distmatrixfile[:-4]+"-cluster_linkage.dat"
    np.savetxt(linkfile,Z,header=header)
-   return
 
    n=len(sim)
    ncls = len(Z)
