@@ -128,14 +128,17 @@ def main(kernel, props, mode, trainfrac, csi, sigma, ntests, ttest, savevector="
     if mode == "all" :
             tp = p[:]
             tk = kij[:][:].copy()
+            vp = np.var(tp) # variance of the property subset (to be size consistent!)            
+            vk = np.trace(tk)/len(tp)
+            print >> sys.stderr, "Regularization shift ", sigma**2 * vk/vp
             #print lweight
             for i in xrange(len(tp)):
-                tk[i,i]+=sigma #/ lweight[i]  # diagonal regularization times weight!
+                tk[i,i]+=sigma**2 * vk/vp  #/ lweight[i]  # diagonal regularization times weight!
             tc = np.linalg.solve(tk, tp)
             krp = np.dot(kij[:,:],tc)
             mae=abs(krp[:]-p[:]).sum()/len(p)
             rms=np.sqrt(((krp[:]-p[:])**2).sum()/len(p))
-            sup=abs(krp[:]-p[:]).max()
+            sup=abs(krp[:]-p[:]).max()             
             print "# train-set MAE: %f RMS: %f SUP: %f" % (mae, rms, sup)
             ltrain = range(nel)            
     else: 
@@ -210,6 +213,7 @@ def main(kernel, props, mode, trainfrac, csi, sigma, ntests, ttest, savevector="
             # but equivalently we can write 
             # ( tk + sigma^2 *tr(tk)/(N vp) I )^-1 p = w            
             #print lweight
+            print >> sys.stderr, "Regularization shift ", sigma**2 * vk/vp
             for i in xrange(len(ltrain)):
                 tk[i,i]+=sigma**2 * vk/vp #/ lweight[i]  # diagonal regularization times weight!
             tc = np.linalg.solve(tk, tp)
