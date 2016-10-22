@@ -56,7 +56,7 @@ def randomsubset(ndata, nsel, plist=None):
             cplist[j] -= psel
     return rdata
 
-def main(kernel, props, mode, trainfrac, csi, sigma, ntests, ttest, savevector="", refindex=""):
+def main(kernel, props, mode, trainfrac, csi, sigma, ntests, ttest, savevector="", refindex="", inweights=""):
 
     trainfrac=float(trainfrac) 
     csi = float(csi)
@@ -67,18 +67,8 @@ def main(kernel, props, mode, trainfrac, csi, sigma, ntests, ttest, savevector="
         raise ValueError("No point in having multiple tests when using determininstic train set selection")
      
     # reads kernel
-    fkernel=open(kernel, "r")
-    fline = fkernel.readline()
-    while fline[0]=='#': fline=fkernel.readline()
-    sline=map(float,fline.split())
-    nel = len(sline)
-    kij = np.zeros((nel,nel), float)
-    ik = 0
-    while (len(sline)==nel):
-        kij[ik]=np.asarray(sline)
-        fline = fkernel.readline()
-        sline=map(float,fline.split())
-        ik+=1
+    kij = np.loadtxt(kernel)
+    nel = len(kij)
     # heuristics to see if this is a kernel or a similarity matrix!!
     if kij[0,0]<1e-8:
         kij = (1-0.5*kij*kij)
@@ -92,22 +82,17 @@ def main(kernel, props, mode, trainfrac, csi, sigma, ntests, ttest, savevector="
         if len(rlabs) != nel:
             raise ValueError("Reference index size mismatch")
     
+    if inweights == "":
+        lweights = np.ones(nel,float)
+    else:
+        lweights = np.loadtxt(inweights, dtype=float);
+        lweights *= nel/lweights.sum()
+        
     # first hyperparameter - we raise the kernel to a positive exponent to make it sharper or smoother
     kij = kij**csi
     
     # reads properties
-    p = np.zeros(nel)
-    fprop=open(props,"r")
-    fline = fprop.readline()
-    while fline[0]=='#': fline=fprop.readline()
-    ik=0
-    while (len(fline)>0):
-        p[ik]=float(fline)
-        fline = fprop.readline()
-        ik+=1
-    if ik<nel : 
-        print "ERROR"
-        exit()
+    p = np.loadtxt(props)
     
     # chooses test
     testmae=0
@@ -208,10 +193,9 @@ def main(kernel, props, mode, trainfrac, csi, sigma, ntests, ttest, savevector="
             # we can then estimate without bringing around the variance. So the problem would be
             # (vp*N/Tr(tk) tk + sigma^2 I )^-1 p = w
             # but equivalently we can write 
-            # ( tk + sigma^2 *tr(tk)/(N vp) I )^-1 p = w            
-            #print lweight
+            # ( tk + sigma^2 *tr(tk)/(N vp) I )^-1 p = w                        
             for i in xrange(len(ltrain)):
-                tk[i,i]+=sigma**2 * vk/vp #/ lweight[i]  # diagonal regularization times weight!
+                tk[i,i]+=sigma**2 * vk/vp/lweights[i]  # diagonal regularization times weight!
             tc = np.linalg.solve(tk, tp)
             krp = np.dot(kij[:,ltrain],tc)   
 
@@ -242,7 +226,7 @@ def main(kernel, props, mode, trainfrac, csi, sigma, ntests, ttest, savevector="
                else: lab = "TEST"
                print i, p[i], krp[i], lab 
 
-        print "# KRR results (%d tests, %f training p., %f test p.): csi=%f  sigma=%f" % (ntests, ctrain/ntests, ctest/ntests, csi, sigma) 
+        print "# KRR results (%d tests, %f training p., %f test p.): csi=%f  sigma=%f " % (ntests, ctrain/ntests, ctest/ntests, csi, sigma),(" weights_file=%s" % inweights if inweights!="" else "")
         print "# Train points MAE=%f  RMSE=%f  SUP=%f" % (trainmae/ntests, trainrms/ntests, trainsup/ntests)
         print "# Test points  MAE=%f  RMSE=%f  SUP=%f " % (testmae/ntests, testrms/ntests, testsup/ntests)
         if len(ltrue) > 0: 
@@ -265,10 +249,11 @@ if __name__ == '__main__':
     parser.add_argument("--csi", type=float, default='1.0', help="Kernel scaling")
     parser.add_argument("--sigma", type=float, default='1e-3', help="KRR regularization. In units of the properties. ")
     parser.add_argument("--ntests", type=int, default='1', help="Number of tests")
+    parser.add_argument("--pweights", type=str, default="", help="Apply prior weights to the data points, reading them from the file. The weights will be normalized to sum to N.")
     parser.add_argument("--refindex",  type=str, default="", help="Structure indices of the kernel matrix (useful when dealing with a subset of a larger structures file)")        
     parser.add_argument("--saveweights",  type=str, default="", help="Save the train-set weights vector in file")    
     
     args = parser.parse_args()
     
     main(kernel=args.kernel[0], props=args.props[0], mode=args.mode, trainfrac=args.f, csi=args.csi, 
-         sigma=args.sigma, ntests=args.ntests, ttest=args.truetest,savevector=args.saveweights, refindex=args.refindex)
+         sigma=args.sigma, ntests=args.ntests, ttest=args.truetest,savevector=args.saveweights, refindex=args.refindex, inweights=args.pweights)
