@@ -116,9 +116,8 @@ def main(kernel, props, mode, trainfrac, csi, sigma, ntests, ttest, savevector="
             vp = np.var(tp) # variance of the property subset (to be size consistent!)            
             vk = np.trace(tk)/len(tp)
             print >> sys.stderr, "Regularization shift ", sigma**2 * vk/vp
-            #print lweight
             for i in xrange(len(tp)):
-                tk[i,i]+=sigma**2 * vk/vp/ lweight[i]  # diagonal regularization times weight!
+                tk[i,i]+=sigma**2 * vk/vp/ lweights[i]  # diagonal regularization times weight!
             tc = np.linalg.solve(tk, tp)
             krp = np.dot(kij[:,:],tc)
             mae=abs(krp[:]-p[:]).sum()/len(p)
