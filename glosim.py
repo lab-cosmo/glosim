@@ -742,7 +742,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
             #        sim[iframe,jframe]=sim[jframe,iframe]=psim[iframe*nf+jframe]
         if(partialsim):pfkernel.close()
         fkernel = open(prefix+".k", "w")  
-        fkernel.write("# Kernel matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)) )
+        fkernel.write("# Kernel matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  SOAP-csi: %f   Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, nd, ld, gs, mu, centerweight, kcsi, periodic, kmode, str(noatom), str(nocenter)) )
         if (nonorm):fkernel.write( " Un-normalized kernels " )        
         if (usekit):fkernel.write( " Using reference kit: %s " % (str(kit)) )
         if (alchemyrules!="none"):fkernel.write( " Using alchemy rules: %s " % (alchemyrules) )
@@ -755,7 +755,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
             
         if printsim:
             fsim = open(prefix+".sim", "w")  
-            fsim.write("# Distance matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, nd, ld, gs, mu, centerweight, periodic, kmode, str(noatom), str(nocenter)) )
+            fsim.write("# Distance matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  SOAP-csi: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, nd, ld, gs, mu, centerweight, kcsi, periodic, kmode, str(noatom), str(nocenter)) )
             if (usekit):fsim.write( " Using reference kit: %s " % (str(kit)) )
             if (alchemyrules!="none"):fsim.write( " Using alchemy rules: %s " % (alchemyrules) )
             if (kmode=="rematch"): fsim.write( " Regularized parameter: %f " % (reggamma) )
