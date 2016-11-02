@@ -4,16 +4,25 @@ import argparse
 import numpy as np
 import math
 
-bufsize = 100
-def main(kernelFilenames, propFilename, weightFilenames, csi):
+
+def main(kernelFilenames, propFilename, weightFilenames, csi,bufsize):
         
+    suffix = weightFilenames[0].split('.')[-1]
+    if suffix == 'alpha': 
+        alphaidx = 0
+        muidx = 1
+    elif suffix == 'mu':
+        alphaidx = 1
+        muidx = 0
+    else:
+        raise ValueError("Suffix of the weights do not match with alpha/mu.")
     # Unpack the alpha's and  their corresponding lines/columns in the kernel matrices
-    wvec = np.loadtxt(weightFilenames[0])
+    wvec = np.loadtxt(weightFilenames[alphaidx])
     alpha = np.asarray(wvec[:,0], float)
     icols = np.asarray(wvec[:,1], int)
     irows = np.asarray(wvec[:,2], int)
     # Unpack the mu's 
-    mu = np.loadtxt(weightFilenames[1])
+    mu = np.loadtxt(weightFilenames[muidx])
     
     p = np.loadtxt(propFilename, dtype=np.float64, comments='#', delimiter=None, converters=None, skiprows=0, usecols=None, unpack=False, ndmin=0)
     
@@ -86,6 +95,7 @@ if __name__ == '__main__':
     parser.add_argument("weights", nargs=1, help="Weights vector") 
     parser.add_argument("props", nargs=1, help="Property file name (for cross-check)")
     parser.add_argument("--csi", type=str, default='1.0', help="Kernel scaling")
+    parser.add_argument("--bufsize", type=int, default=1000, help="Size of the buffer")
     
     args = parser.parse_args()
     kernelFilenames = args.kernels[0].split(',')
@@ -97,5 +107,5 @@ if __name__ == '__main__':
     for it,item in enumerate(a):
         csi[it] = float(item)
     
-    main(kernelFilenames=kernelFilenames, propFilename=args.props[0], weightFilenames=weightsFilenames, csi=csi)
+    main(kernelFilenames=kernelFilenames, propFilename=args.props[0], weightFilenames=weightsFilenames, csi=csi, bufsize=args.bufsize)
 

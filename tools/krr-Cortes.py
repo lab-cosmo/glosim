@@ -9,54 +9,8 @@ import numpy as np
 import sys
 import MultipleKernelLearning as mkl 
 import costs as cst
+from select_landmarks import farthestPointSampling,randomsubset,cur,segfind
 
-def segfind(cp, cs):
-    a = 0
-    b = len(cp)    
-    while (b-a)>1:
-        c = int((b+a)/2)
-        if cs<cp[c]:
-            b = c
-        else:
-            a = c
-    if cs < cp[a]:
-        return a
-    else:
-        return b
-        
-def cur(kernel,tol=1.0e-4):
-
-    U, S, V = np.linalg.svd(kernel)
-    rank = list(S > tol).count(True) / 2
-    S[rank:] = 0.0
-    S = np.diag(S)
-    Ap = np.dot(np.dot(U,S),V)
-    p = np.sum(V[0:rank,:]**2, axis=0) / rank
-    return p
-
-def randomsubset(ndata, nsel, plist=None):    
-    if nsel > ndata:
-        raise ValueError("Cannot select data out of thin air")
-    if nsel == ndata: 
-        return np.asarray(range(ndata))
-    cplist = np.zeros(ndata)
-    if plist is None:
-        plist = np.ones(ndata, float)
-        
-    # computes initial cumulative probability distr.
-    cplist[0]=plist[0] 
-    for i in xrange(1,ndata):
-        cplist[i]=cplist[i-1]+plist[i]
-    
-    rdata = np.zeros(nsel, int)
-    for i in xrange(nsel):
-        csel = np.random.uniform() * cplist[-1]
-        isel = segfind(cplist, csel)
-        rdata[i] = isel
-        psel = plist[isel]
-        for j in xrange(isel,ndata):
-            cplist[j] -= psel
-    return rdata
 
 def main(kernelFilenames, propFilename, mode, trainfrac, csi,  ntests, ttest, savevector="", refindex="",**KRRCortesParam):
 
@@ -141,7 +95,12 @@ def main(kernelFilenames, propFilename, mode, trainfrac, csi,  ntests, ttest, sa
         ntrain = int(trainfrac*nel)
         if mode == "manual": ntrain=len(mtrain)
         ntrue = int(ttest*nel)        
-
+        seeds = np.random.randint(0,5000,ntests)
+        alphas = []
+        mus = []
+        testMAEs = []
+        ltrains = []
+        rlabss = []
         for itest in xrange(ntests):        
             ltest = np.zeros(nel-ntrain-ntrue,int)
             ltrain = np.zeros(ntrain,int)
@@ -167,38 +126,9 @@ def main(kernelFilenames, propFilename, mode, trainfrac, csi,  ntests, ttest, sa
                 isel=int(np.random.uniform()*nel)
                 while isel in ltrue:
                     isel=int(np.random.uniform()*nel)
-                    
-                ldist = 1e100*np.ones(nel,float)
-                imin = np.zeros(nel,int) # index of the closest FPS grid point
-                ltrain[0]=isel
-                nontrue = np.setdiff1d(range(nel), ltrue)
-                for nsel in xrange(1,ntrain):
-                    dmax = 0
-                    imax = 0       
-                    for i in nontrue:
-                        dsel = np.sqrt(kij[i,i]+kij[isel,isel]-2*kij[i,isel]) #don't assume kernel is normalised
-                        if dsel < ldist[i]:
-                           imin[i] = nsel-1                    
-                           ldist[i] = dsel
-                        if ldist[i] > dmax:
-                            dmax = ldist[i]; imax = i
-                    # print "selected ", isel, " distance ", dmax
-                    isel = imax
-                    ltrain[nsel] = isel
                 
-                for i in xrange(nel):
-                    if i in ltrue: continue                    
-                    dsel = np.sqrt(kij[i,i]+kij[isel,isel]-2*kij[i, isel])
-                  #  dsel = np.sqrt(1.0-kij[i, isel])
-                    if dsel < ldist[i]:
-                        imin[i] = nsel-1
-                        ldist[i] = dsel
-                    if ldist[i] > dmax:
-                        dmax = ldist[i]; imax = i
+                ltrain = farthestPointSampling(kij,nel,ntrain,initalLandmark=isel,listOfDiscardedPoints=ltrue,seed=seeds[itest])    
             
-            print kernels[0].shape
-            print nel
-            print prop.shape 
             k = 0
             for i in xrange(nel):
                 if not i in ltrain and not i in ltrue: 
@@ -239,6 +169,12 @@ def main(kernelFilenames, propFilename, mode, trainfrac, csi,  ntests, ttest, sa
             sup = cst.sup_e(propTe-propTeRef)
             print "# run: {} test-set MAE: {:.4e} RMS: {:.4e} SUP: {:.4e}".format(itest, mae, rms, sup)
             
+            # accumulate output to select the weigths corresponding to the lowest MAE
+            alphas.append(alpha)
+            mus.append(mu)
+            testMAEs.append(mae)
+            ltrains.append(ltrain)
+            rlabss.append(rlabs)
             
 
             testmae += cst.mae(propTe-propTeRef)
@@ -262,27 +198,32 @@ def main(kernelFilenames, propFilename, mode, trainfrac, csi,  ntests, ttest, sa
             
             # print alpha
             print 'Mu = {}'.format(mu)
-        # print "# KRR results (%d tests, %f training p., %f test p.): csi=%f  sigma=%f" % (ntests, ctrain/ntests, ctest/ntests, csi, sigma) 
-        # print "# Train points MAE=%f  RMSE=%f  SUP=%f" % (trainmae/ntests, trainrms/ntests, trainsup/ntests)
-        # print "# Test points  MAE=%f  RMSE=%f  SUP=%f " % (testmae/ntests, testrms/ntests, testsup/ntests)
+        
         print "# KRR results ({:d} tests, {:f} training p., {:f} test p.): csi={}  sigma={:.2e} mu0={} Lambda={:.1f} epsilon={:.1e} eta={:.1e} "\
         .format(ntests, ctrain/ntests, ctest/ntests, csi, KRRCortesParam['sigma'],KRRCortesParam['mu0'],KRRCortesParam['Lambda'],KRRCortesParam['epsilon'],KRRCortesParam['eta']) 
-        print "# Train points MAE={:.4e}  RMSE={:.4e}  SUP={:.4e}".format(trainmae/ntests, trainrms/ntests, trainsup/ntests)
-        print "# Test points  MAE={:.4e}  RMSE={:.4e}  SUP={:.4e} ".format(testmae/ntests, testrms/ntests, testsup/ntests)
+        print "# Train points averages: MAE={:.4e}  RMSE={:.4e}  SUP={:.4e}".format(trainmae/ntests, trainrms/ntests, trainsup/ntests)
+        print "# Test points averages: MAE={:.4e}  RMSE={:.4e}  SUP={:.4e} ".format(testmae/ntests, testrms/ntests, testsup/ntests)
         if len(ltrue) > 0: 
             print "# True test points  MAE=%f  RMSE=%f  SUP=%f " % (truemae/ntests, truerms/ntests, truesup/ntests)
     
     if savevector:
-        falpha=open(savevector+'.alpha','w')
-        fmu=open(savevector+'.mu','w')
+        bestRunIdx = np.argmin(testMAEs)
+        falpha = open(savevector+'.alpha','w')
+        fmu = open(savevector+'.mu','w')
         kernelFilenamesStr = '';
         for it,kernelFilename in enumerate(kernelFilenames): 
             kernelFilenamesStr+=kernelFilename+' '
-           
-        commentline=' Train Vector from kernel matrix: '+ kernelFilenamesStr +', and properties from '+ propFilename + ' selection mode: '+mode+' : Csi, sigma, mu0, Lambda, epsilon, eta = ' + str(csi) +' , '+ str(KRRCortesParam['sigma']) \
+
+        commentline=' Train Vector from kernel matrix with the best MAE test score ('+str(np.min(testMAEs))+'): '+ kernelFilenamesStr +', and properties from '+ propFilename + ' selection mode: '+mode+' : Csi, sigma, mu0, Lambda, epsilon, eta = ' + str(csi) +' , '+ str(KRRCortesParam['sigma']) \
                     +' , '+ str(mu0)+' , '+ str(KRRCortesParam['Lambda'])+' , '+ str(KRRCortesParam['epsilon'])+' , '+ str(KRRCortesParam['eta'])
-        np.savetxt(falpha,np.asarray([alpha, ltrain, rlabs[ltrain]]).T,fmt=("%24.15e", "%10d", "%10d"),header=commentline)
-        np.savetxt(fmu,mu,fmt=("%24.15e"),header=commentline)
+        np.savetxt(falpha,np.asarray([alphas[bestRunIdx], ltrains[bestRunIdx], rlabss[bestRunIdx][ltrains[bestRunIdx]]]).T,fmt=("%24.15e", "%10d", "%10d"),header=commentline)
+        np.savetxt(fmu,mus[bestRunIdx],fmt=("%24.15e"),header=commentline)
+        
+        # commentline=' Train Vector from kernel matrix with the best MAE test score ('+str(testMAEs[-1])+'): '+ kernelFilenamesStr +', and properties from '+ propFilename + ' selection mode: '+mode+' : Csi, sigma, mu0, Lambda, epsilon, eta = ' + str(csi) +' , '+ str(KRRCortesParam['sigma']) \
+        #             +' , '+ str(mu0)+' , '+ str(KRRCortesParam['Lambda'])+' , '+ str(KRRCortesParam['epsilon'])+' , '+ str(KRRCortesParam['eta'])
+        
+        # np.savetxt(falpha,np.asarray([alpha, ltrain, rlabs[ltrain]]).T,fmt=("%24.15e", "%10d", "%10d"),header=commentline)
+        # np.savetxt(fmu,mu,fmt=("%24.15e"),header=commentline)
         falpha.close()
         fmu.close()
 

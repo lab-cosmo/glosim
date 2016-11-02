@@ -56,24 +56,34 @@ def randomsubset(ndata, nsel, plist=None):
             cplist[j] -= psel
     return rdata
 
-def farthestPointSampling(kernel,nbOfFrames,nbOfLandmarks):
-    np.random.seed(10)
+
+
+def farthestPointSampling(kernel,nbOfFrames,nbOfLandmarks,initalLandmark=None,listOfDiscardedPoints=[],seed=10,verbose=False):
+    np.random.seed(seed)
     LandmarksIdx = np.zeros(nbOfLandmarks,int)
-    isel = int(np.random.uniform()*nbOfFrames)
+    if initalLandmark is None:
+        isel = int(np.random.uniform()*nbOfFrames)
+        while isel in listOfDiscardedPoints:
+            isel=int(np.random.uniform()*nbOfFrames)
+    else:
+        isel = initalLandmark
+
     ldist = 1e100*np.ones(nbOfFrames,float)
     imin = np.zeros(nbOfFrames,int) # index of the closest FPS grid point
     LandmarksIdx[0] = isel
+    nontrue = np.setdiff1d(range(nbOfFrames), listOfDiscardedPoints)
     for nsel in xrange(1,nbOfLandmarks):
         dmax = 0
         imax = 0       
-        for i in range(nbOfFrames):
+        for i in nontrue:
             dsel = np.sqrt(kernel[i,i]+kernel[isel,isel]-2*kernel[i,isel]) #don't assume kernel is normalised
             if dsel < ldist[i]:
                imin[i] = nsel-1                    
                ldist[i] = dsel
             if ldist[i] > dmax:
                 dmax = ldist[i]; imax = i
-        print "selected ", isel, " distance ", dmax
+        if verbose is True:
+            print "selected ", isel, " distance ", dmax
         isel = imax
         LandmarksIdx[nsel] = isel
     return LandmarksIdx

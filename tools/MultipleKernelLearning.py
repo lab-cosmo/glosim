@@ -7,7 +7,7 @@ import costs as cst
 
 """MKL KRR from Cortes 2009 : 'L2 regularization for learning kernels'."""
 
-def TrainKRRCortes(kernels,prop,**KRRCortesParam):
+def TrainKRRCortes(kernels,prop,verbose=False,**KRRCortesParam):
     """kernels is a list of numpy nxn kernel matrices associated to the training set.
     prop is a numpy array containing the properties corresponding to the training set.
     KRRCortesParam is a dictionary of the parameters of the algorithm."""
@@ -36,9 +36,9 @@ def TrainKRRCortes(kernels,prop,**KRRCortesParam):
     
     regParam = sigma**2 * kernelMat.trace() / (n * propVar)
     alphaNew = np.dot(np.linalg.inv(kernelMat + regParam*Id),prop)
-
-    Mae = cst.mae(np.dot(alphaNew,kernelMat)-prop)
-    print 'Initial MAE : {:.4e}'.format(Mae)
+    MaeInit = cst.mae(np.dot(alphaNew,kernelMat)-prop)
+    if verbose is True:
+        print 'Initial MAE : {:.4e}'.format(MaeInit)
     N = 0
     while(np.linalg.norm(alphaNew-alphaOld) > epsilon and N <= Nmax):
         # print 'ENter ##################'
@@ -56,13 +56,17 @@ def TrainKRRCortes(kernels,prop,**KRRCortesParam):
 
         # update alpha
         regParam = sigma**2 * kernelMat.trace() / (n * propVar)
-        print regParam, kernelMat.trace(), mu      
+        #print regParam, kernelMat.trace(), mu      
         alphaNew = eta * alphaOld + (1-eta) * np.dot(np.linalg.inv(kernelMat+ regParam*Id),prop)
-        
-        Mae = cst.mae(np.dot(alphaNew,kernelMat)-prop)
-        print 'N = {:.0f} / alpha diff = {:.3e} / MAE = {:.4e}'.format(N,np.linalg.norm(alphaNew-alphaOld),Mae)
         N += 1
 
+        if verbose is True:
+            Mae = cst.mae(np.dot(alphaNew,kernelMat)-prop)
+            print 'N = {:.0f} / alpha diff = {:.3e} / MAE = {:.4e}'.format(N,np.linalg.norm(alphaNew-alphaOld),Mae)
+        
+
+    print 'Training the weights with Cortes algorithm has ended in {:.0f} iterrations \n  alpha diff = {:.3e} / Initial Mae={:.4e} / Final Mae={:.4e}'\
+            .format(N,np.linalg.norm(alphaNew-alphaOld),MaeInit,cst.mae(np.dot(alphaNew,kernelMat)-prop))
     propTr = np.dot(alphaNew,kernelMat)
     return alphaNew, mu, propTr
 
