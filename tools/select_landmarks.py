@@ -56,6 +56,28 @@ def randomsubset(ndata, nsel, plist=None):
             cplist[j] -= psel
     return rdata
 
+def farthestPointSampling(kernel,nbOfFrames,nbOfLandmarks):
+    np.random.seed(10)
+    LandmarksIdx = np.zeros(nbOfLandmarks,int)
+    isel = int(np.random.uniform()*nbOfFrames)
+    ldist = 1e100*np.ones(nbOfFrames,float)
+    imin = np.zeros(nbOfFrames,int) # index of the closest FPS grid point
+    LandmarksIdx[0] = isel
+    for nsel in xrange(1,nbOfLandmarks):
+        dmax = 0
+        imax = 0       
+        for i in range(nbOfFrames):
+            dsel = np.sqrt(kernel[i,i]+kernel[isel,isel]-2*kernel[i,isel]) #don't assume kernel is normalised
+            if dsel < ldist[i]:
+               imin[i] = nsel-1                    
+               ldist[i] = dsel
+            if ldist[i] > dmax:
+                dmax = ldist[i]; imax = i
+        print "selected ", isel, " distance ", dmax
+        isel = imax
+        LandmarksIdx[nsel] = isel
+    return LandmarksIdx
+
 def main(kernel, props, mode, nland,output="distance", prefix=""):
 
     if prefix=="" : prefix=kernel[0:-2]     
@@ -71,60 +93,42 @@ def main(kernel, props, mode, nland,output="distance", prefix=""):
     
     np.set_printoptions(threshold=1000)
     nland = int(nland)
-
-    ltest = np.zeros(nel-nland,int)
-    lland = np.zeros(nland,int)
     
     psel = np.ones(nel,float)
     if mode == "random":
-        ltrain[:] = randomsubset(nel, nland, psel)
-    elif mode == "fps":            
-        isel=int(np.random.uniform()*nel)
-        ldist = 1e100*np.ones(nel,float)
-        imin = np.zeros(nel,int) # index of the closest FPS grid point
-        lland[0]=isel
-        for nsel in xrange(1,nland):
-            dmax = 0
-            imax = 0       
-            for i in range(nel):
-                dsel = np.sqrt(kij[i,i]+kij[isel,isel]-2*kij[i,isel]) #don't assume kernel is normalised
-                if dsel < ldist[i]:
-                   imin[i] = nsel-1                    
-                   ldist[i] = dsel
-                if ldist[i] > dmax:
-                    dmax = ldist[i]; imax = i
-            print "selected ", isel, " distance ", dmax
-            isel = imax
-            lland[nsel] = isel
-    
+        LandmarksIdx = randomsubset(nel, nland, psel)
+    elif mode == "fps":  
+        LandmarksIdx = farthestPointSampling(kij,nel,nland)
+        
+
     filand=prefix+"-landmark"+str(nland)+".index"
-    np.savetxt(filand,lland,fmt='%1.1i')
+    np.savetxt(filand,LandmarksIdx,fmt='%1.1i')
     if props != "":
-      lp = p[lland]
-      fpland=prefix+"-landmark"+str(nland)+".prop"
-      np.savetxt(fpland,lp)
+        lp = p[LandmarksIdx]
+        fpland=prefix+"-landmark"+str(nland)+".prop"
+        np.savetxt(fpland,lp)
 
     if output=="kernel":    
-      print "Writing Kernels"
-      lk = kij[lland][:,lland].copy()
-      fkland=prefix+"-landmark"+str(nland)+".k"
-      np.savetxt(fkland,lk)
-      foos=prefix+"-landmark"+str(nland)+"-OOS.k"
-      koos=kij[:,lland]
-      np.savetxt(foos,koos)
+        print "Writing Kernels"
+        lk = kij[LandmarksIdx][:,LandmarksIdx].copy()
+        fkland=prefix+"-landmark"+str(nland)+".k"
+        np.savetxt(fkland,lk)
+        foos=prefix+"-landmark"+str(nland)+"-OOS.k"
+        koos=kij[:,LandmarksIdx]
+        np.savetxt(foos,koos)
 
     if output=="distance" :
-      print "Writing Distances"
-      sim=np.zeros((nel,nel))
-      for i in range(nel):
-         for j in range(i):
-           sim[i,j]=sim[j,i]=np.sqrt(kij[i,i]+kij[j,j]-2*kij[i,j])
-      ld=sim[lland][:,lland].copy()   
-      fsimland=prefix+"-landmark"+str(nland)+".sim"
-      np.savetxt(fsimland,ld)
-      foos=prefix+"-landmark"+str(nland)+"-OOS.sim"
-      simoos=sim[:,lland]
-      np.savetxt(foos,simoos)
+        print "Writing Distances"
+        sim=np.zeros((nel,nel))
+        for i in range(nel):
+            for j in range(i):
+                sim[i,j]=sim[j,i]=np.sqrt(kij[i,i]+kij[j,j]-2*kij[i,j])
+        ld=sim[LandmarksIdx][:,LandmarksIdx].copy()   
+        fsimland=prefix+"-landmark"+str(nland)+".sim"
+        np.savetxt(fsimland,ld)
+        foos=prefix+"-landmark"+str(nland)+"-OOS.sim"
+        simoos=sim[:,LandmarksIdx]
+        np.savetxt(foos,simoos)
          
     
 
