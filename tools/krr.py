@@ -115,6 +115,8 @@ def main(kernel, props, mode, trainfrac, csi, sigma, ntests, ttest, savevector="
             tk = kij[:][:].copy()
             vp = np.var(tp) # variance of the property subset (to be size consistent!)            
             vk = np.trace(tk)/len(tp)
+            n = len(tp)
+            lweight = np.ones(n,np.float64)
             print >> sys.stderr, "Regularization shift ", sigma**2 * vk/vp
             for i in xrange(len(tp)):
                 tk[i,i]+=sigma**2 * vk/vp/ lweights[i]  # diagonal regularization times weight!
