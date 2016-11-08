@@ -28,7 +28,7 @@ def flush(stream):
     os.fsync(stream)
    
 
-def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, permanenteps, reggamma, nocenter, envsim, noatom, nprocs, verbose=False, envij=None, usekit=False, kit="auto", alchemyrules="none",prefix="",nlandmark=0, printsim=False,ref_xyz="",partialsim=False,lowmem=False,restartflag=False, kcsi=1.0):
+def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, permanenteps, reggamma, nocenter, envsim, noatom, nprocs, verbose=False, envij=None, usekit=False, kit="auto", alchemyrules="none",prefix="",nlandmark=0, printsim=False,ref_xyz="",partialsim=False,lowmem=False,restartflag=False, zeta=1.0, alrange=(0,0), refrange=(0,0)):
     start_time = datetime.now()
     print >>sys.stderr, "          TIME:  ", ctime() ;
     print >>sys.stderr, "        ___  __    _____  ___  ____  __  __ ";
@@ -56,13 +56,20 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
 
     # Reads input file using quippy
     print >> sys.stderr, "Reading input file", filename
-    al = quippy.AtomsList(filename);
+    (first,last)=alrange; 
+    if first==0: first=None; 
+    if last==0: last=None
+    al = quippy.AtomsList(filename, start=first, stop=last);
     print >> sys.stderr, len(al.n) , " Configurations Read"
     if (ref_xyz !=""):
         print >> sys.stderr, "================================REFERENCE XYZ FILE GIVEN=====================================\n",
         print >> sys.stderr, "Only Rectangular Matrix Containing Distances Between Two Sets of Input Files Will be Computed.\n",
-        print >> sys.stderr, "Reading Referance xyz file: ", ref_xyz
-        alref = quippy.AtomsList(ref_xyz);
+        print >> sys.stderr, "Reading Reference xyz file: ", ref_xyz
+        (first,last)=refrange; 
+        if fist==0: first=None; 
+        if last==0: last=None
+    
+        alref = quippy.AtomsList(ref_xyz,start=first, stop=last);
         print >> sys.stderr, len(alref.n) , " Configurations Read"
     if restartflag:
        print >> sys.stderr, "Restart run: Reading SOAPs"
@@ -198,7 +205,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
                             slog.write("\n")
             else:
                fii = None
-            sii,senvii = structk(si, si, alchem, periodic, mode=kmode, fout=fii, peps=permanenteps, gamma=reggamma, csi=kcsi)        
+            sii,senvii = structk(si, si, alchem, periodic, mode=kmode, fout=fii, peps=permanenteps, gamma=reggamma, zeta=zeta)        
              
             if fl_envsim:
               simenv[icount*nenv:icount*nenv+nenv,icount*nenv:icount*nenv+nenv]=senvii
@@ -287,7 +294,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
                                 for sj in s:
                                     slogref.write("%8.4e " %(sj))
                                 slogref.write("\n")
-                sii,senvii = structk(si, si, alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma, csi=kcsi)        
+                sii,senvii = structk(si, si, alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma, zeta=zeta)        
                 if fl_envsim:
                       simenv[iframe*nenv:iframe*nenv+nenv,iframe*nenv:iframe*nenv+nenv]=senvii
                 nrm_ref[iframe]=sii        
@@ -314,7 +321,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
            sys.stderr.write("Matrix row %d                           \r" % (iframe))
            sli=sl[iframe]
            for jframe in range(nf_ref):
-             sij,senvij = structk(sli, sl_ref[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma, csi=kcsi)
+             sij,senvij = structk(sli, sl_ref[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma, zeta=zeta)
              if not nonorm: sij/=np.sqrt(nrm[iframe]*nrm_ref[jframe])
              sim[iframe][jframe]=sij
          if(partialsim):
@@ -328,7 +335,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
                     sys.stderr.write("Matrix row %d                           \r" % (iframe))           
                     sli=sl[iframe]  
                     for jframe in range(nf_ref):
-                        sij,senvij = structk(sli, sl_ref[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma, csi=kcsi)
+                        sij,senvij = structk(sli, sl_ref[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma, zeta=zeta)
                         if not nonorm: sij/=np.sqrt(nrm[iframe]*nrm_ref[jframe])
                         psim[iframe*nf_ref+jframe]=sij
             psim = Array('d', nf_ref*nf, lock=False)
@@ -466,7 +473,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
             landmarks.append(iframe)
             sli=sl[iframe]
             for jframe in range(nf):            
-                sij,senvij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, fout=None,peps = permanenteps, gamma=reggamma, csi=kcsi)
+                sij,senvij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, fout=None,peps = permanenteps, gamma=reggamma, zeta=zeta)
                 if not nonorm: 
                        sij/=np.sqrt(nrm[iframe]*nrm[jframe])
                        dist_list[jframe] = np.sqrt(abs(2.0-2.0*sij)) # use kernel metric
@@ -506,7 +513,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
             sli = sl[iframe]
             if (nprocs<=1):
               for jframe in range(nf):                
-                sij,senvij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma, csi=kcsi)
+                sij,senvij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma, zeta=zeta)
                 # normalize the kernel
                 if not nonorm: 
                        sij/=np.sqrt(nrm[iframe]*nrm[jframe])
@@ -527,7 +534,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
 		      # multiple processors
               def docol(pdist, psim, iframe, nf, nproc, iproc):
                   for jframe in range(iproc, nf, nproc):                                
-                     sij,senvij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma, csi=kcsi)
+                     sij,senvij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma, zeta=zeta)
                      if not nonorm: 
                             sij/=np.sqrt(nrm[iframe]*nrm[jframe])
                             dij = np.sqrt(abs(2-2*sij)) # use kernel metric
@@ -661,7 +668,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
                         fij = open(prefix+".environ-"+str(iframe)+"-"+str(jframe)+".dat", "w")
                     else: fij = None
                     # if periodic: sys.stderr.write("comparing %3d, atoms cell with  %3d atoms cell: lcm: %3d \r" % (sl[iframe].nenv, sl[jframe].nenv, lcm(sl[iframe].nenv,sl[jframe].nenv))) 
-                    sij,senvij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, fout=fij, peps = permanenteps, gamma=reggamma, csi=kcsi)
+                    sij,senvij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, fout=fij, peps = permanenteps, gamma=reggamma, zeta=zeta)
                     if not nonorm: sij/=np.sqrt(nrm[iframe]*nrm[jframe])
                     sim[iframe][jframe]=sim[jframe][iframe]=sij
                     if fl_envsim:
@@ -681,7 +688,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
                     sli=sl[iframe] 
                     sys.stderr.write("Matrix row %d %d    \r" % (iproc, iframe))
                     for jframe in range(0,iframe):
-                        sij,senvij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, peps = permanenteps, gamma=reggamma, csi=kcsi)
+                        sij,senvij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, peps = permanenteps, gamma=reggamma, zeta=zeta)
                         if not nonorm: sij/=np.sqrt(nrm[iframe]*nrm[jframe])
                         psim[jframe+iframe*nf]=sij
             proclist = []   
@@ -703,7 +710,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
               #~ sli=sl[iframe] 
               #~ def dorow(irow,nf,nprocs,iproc, psim):
                 #~ for jframe in range(iproc,nf,nprocs):
-                    #~ sij,senvij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, peps = permanenteps, gamma=reggamma, csi=kcsi)
+                    #~ sij,senvij = structk(sli, sl[jframe], alchem, periodic, mode=kmode, peps = permanenteps, gamma=reggamma, zeta=zeta)
                     #~ if not nonorm: sij/=np.sqrt(nrm[irow]*nrm[jframe])  
                     #~ psim[jframe]=sij
               #~ proclist = []   
@@ -742,7 +749,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
             #        sim[iframe,jframe]=sim[jframe,iframe]=psim[iframe*nf+jframe]
         if(partialsim):pfkernel.close()
         fkernel = open(prefix+".k", "w")  
-        fkernel.write("# Kernel matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  SOAP-csi: %f   Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, nd, ld, gs, mu, centerweight, kcsi, periodic, kmode, str(noatom), str(nocenter)) )
+        fkernel.write("# Kernel matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  SOAP-csi: %f   Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, nd, ld, gs, mu, centerweight, zeta, periodic, kmode, str(noatom), str(nocenter)) )
         if (nonorm):fkernel.write( " Un-normalized kernels " )        
         if (usekit):fkernel.write( " Using reference kit: %s " % (str(kit)) )
         if (alchemyrules!="none"):fkernel.write( " Using alchemy rules: %s " % (alchemyrules) )
@@ -755,7 +762,7 @@ def main(filename, nd, ld, coff, gs, mu, centerweight, periodic, kmode, nonorm, 
             
         if printsim:
             fsim = open(prefix+".sim", "w")  
-            fsim.write("# Distance matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  SOAP-csi: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, nd, ld, gs, mu, centerweight, kcsi, periodic, kmode, str(noatom), str(nocenter)) )
+            fsim.write("# Distance matrix for %s. Cutoff: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Zeta: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, nd, ld, gs, mu, centerweight, kcsi, periodic, kmode, str(noatom), str(nocenter)) )
             if (usekit):fsim.write( " Using reference kit: %s " % (str(kit)) )
             if (alchemyrules!="none"):fsim.write( " Using alchemy rules: %s " % (alchemyrules) )
             if (kmode=="rematch"): fsim.write( " Regularized parameter: %f " % (reggamma) )
@@ -803,7 +810,7 @@ if __name__ == '__main__':
       parser.add_argument("--mu", type=float, default='0.0', help="Extra penalty for comparing to missing atoms")
       parser.add_argument("--usekit", action="store_true", help="Computes the least commond denominator of all structures and uses that as a reference state")      
       parser.add_argument("--gamma", type=float, default="1.0", help="Regularization for entropy-smoothed best-match kernel")
-      parser.add_argument("--kcsi", type=float, default="1.0", help="Exponent for the atomic SOAP kernel")
+      parser.add_argument("--zeta", type=float, default="1.0", help="Exponent for the atomic SOAP kernel")
       parser.add_argument("--kit", type=str, default="auto", help="Dictionary-style kit specification (e.g. --kit '{4:1,6:10}'")
       parser.add_argument("--alchemy_rules", type=str, default="none", help='Dictionary-style rule specification in quote (e.g. --alchemy_rules "{(6,7):1,(6,8):1}"')
       parser.add_argument("--kernel", type=str, default="match", help="Global kernel mode (e.g. --kernel average / match / rematch / species / fastavg ")      
@@ -813,6 +820,10 @@ if __name__ == '__main__':
       parser.add_argument("--np", type=int, default='1', help="Use multiple processes to compute the kernel matrix")
       parser.add_argument("--ij", type=str, default='', help="Compute and print diagnostics for the environment similarity between frames i,j (e.g. --ij 3,4)")
       parser.add_argument("--nlandmarks", type=int,default='0',help="Use farthest point sampling method to select n landmarks. This will also generate the OOS matrix for rest of the frames")     
+      parser.add_argument("--first", type=int, default='0', help="Index of first frame to be read in")      
+      parser.add_argument("--last", type=int, default='0', help="Index of last frame to be read in")
+      parser.add_argument("--reffirst", type=int, default='0', help="Index of first frame to be read in for refxyz")      
+      parser.add_argument("--reflast", type=int, default='0', help="Index of last frame to be read in for refxyz")
       parser.add_argument("--refxyz", type=str, default='', help="ref xyz file if you want to compute the rectangular matrix contaning distances from ref configurations")
       parser.add_argument("--prefix", type=str, default='', help="Prefix for output files (defaults to input file name)")
       parser.add_argument("--livek",  action="store_true", help="Writes out diagnostics for the optimal match assignment of each pair of environments")   
@@ -842,4 +853,4 @@ if __name__ == '__main__':
       else:
          envij=tuple(map(int,args.ij.split(",")))
                   
-      main(args.filename, nd=args.n, ld=args.l, coff=args.c, gs=args.g, mu=args.mu, centerweight=args.cw, periodic=args.periodic, usekit=args.usekit, kit=args.kit,alchemyrules=args.alchemy_rules, kmode=args.kernel, nonorm=args.nonorm, permanenteps=args.permanenteps, reggamma=args.gamma, noatom=noatom, nocenter=nocenter, envsim=args.envsim, nprocs=args.np, verbose=args.verbose, envij=envij, prefix=args.prefix, nlandmark=args.nlandmarks, printsim=args.distance,ref_xyz=args.refxyz,partialsim=args.livek,lowmem=args.lowmem,restartflag=args.restart, kcsi=args.kcsi)
+      main(args.filename, nd=args.n, ld=args.l, coff=args.c, gs=args.g, mu=args.mu, centerweight=args.cw, periodic=args.periodic, usekit=args.usekit, kit=args.kit,alchemyrules=args.alchemy_rules, kmode=args.kernel, nonorm=args.nonorm, permanenteps=args.permanenteps, reggamma=args.gamma, noatom=noatom, nocenter=nocenter, envsim=args.envsim, nprocs=args.np, verbose=args.verbose, envij=envij, prefix=args.prefix, nlandmark=args.nlandmarks, printsim=args.distance,ref_xyz=args.refxyz,partialsim=args.livek,lowmem=args.lowmem,restartflag=args.restart, zeta=args.zeta, alrange=(args.first,args.last), refrange=(args.reffirst, args.reflast))

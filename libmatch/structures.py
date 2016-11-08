@@ -136,7 +136,7 @@ def lcm(a,b):
 #    
 #   return envk(strucA.globenv, strucB.globenv, alchem) 
 
-def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout=None, peps=0.0, gamma=1.0, csi=1.0):
+def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout=None, peps=0.0, gamma=1.0, zeta=1.0):
    # computes the SOAP similarity KERNEL between two structures by combining atom-centered kernels
    # possible kernel modes include:
    #   average :  scalar product between averaged kernels
@@ -147,7 +147,7 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
    if mode=="fastavg":
        genvA=strucA.globenv
        genvB=strucB.globenv        
-       return envk(genvA, genvB, alchem)**csi, 0
+       return envk(genvA, genvB, alchem)**zeta, 0
    elif mode=="species": 
        # for now, only implement standard Kronecker alchemy
        senvB = environ(strucB.nmax, strucB.lmax, strucB.alchem)
@@ -160,7 +160,7 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
          senvB = environ(strucB.nmax, strucB.lmax, strucB.alchem)   
          for ib in xrange(strucB.getnz(za)):
             senvB.add(strucB.getenv(za, ib))
-         kk += envk(senvA, senvB, alchem)**csi
+         kk += envk(senvA, senvB, alchem)**zeta
        
        kk/=strucA.nenv*strucB.nenv
        return kk,0
@@ -211,7 +211,7 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
                    kk[ika,ikb] = exp(-alchem.mu)
                else:
                   #if za == zb:  #uncomment to zero out kernels between different species
-                    kk[ika,ikb] = envk(envA, envB, alchem)**csi              
+                    kk[ika,ikb] = envk(envA, envB, alchem)**zeta              
                   #else: kk[ika,ikb] = 0
                ikb+=1
          ika+=1
