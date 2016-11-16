@@ -46,7 +46,7 @@ class structure:
       else: return True
    
       
-   def parse(self, fat, coff=5.0, nmax=4, lmax=3, gs=0.5, cw=1.0, nocenter=[], noatom=[], kit=None):
+   def parse(self, fat, coff=5.0, cotw=0.5, nmax=4, lmax=3, gs=0.5, cw=1.0, nocenter=[], noatom=[], kit=None):
       """ Takes a frame in the QUIPPY format and computes a list of its environments. """
       
       # removes atoms that are to be ignored
@@ -79,7 +79,7 @@ class structure:
             continue # Option to skip some environments
          
          # first computes the descriptors of species that are present
-         desc = quippy.descriptors.Descriptor("soap central_weight="+str(cw)+"  covariance_sigma0=0.0 atom_sigma="+str(gs)+" cutoff="+str(coff)+" n_max="+str(nmax)+" l_max="+str(lmax)+' '+lspecies+' Z='+str(sp) )   
+         desc = quippy.descriptors.Descriptor("soap central_weight="+str(cw)+"  covariance_sigma0=0.0 atom_sigma="+str(gs)+" cutoff="+str(coff)+" cutoff_transition_width="+str(cotw)+" n_max="+str(nmax)+" l_max="+str(lmax)+' '+lspecies+' Z='+str(sp) )   
          try:
             psp =np.asarray(desc.calc(at,desc.dimensions(),self.species[sp])).T
          except TypeError:
