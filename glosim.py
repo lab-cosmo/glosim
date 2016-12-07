@@ -89,7 +89,7 @@ def main(filename, nd, ld, coff, cotw, gs, mu, centerweight, periodic, kmode, no
        r=pickle.load(file)
        file.close()
        gc.enable()
-       print >> sys.stderr, "Using Alchemy rules: ", r,"\n"
+       #print >> sys.stderr, "Using Alchemy rules: ", r,"\n"
        alchem = alchemy(mu=mu,rules=r)
     else:
        r=alchemyrules.replace('"', '').strip()

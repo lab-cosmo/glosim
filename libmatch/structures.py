@@ -271,6 +271,10 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
        # print cost, kk.sum()/(nenv*nenv), envk(strucA.globenv, strucB.globenv, alchem)
    elif mode == "average":
        cost = kk.sum()/(nenvA*nenvB)
+       # print 'elem: {}'.format(kk.sum()) 
+       # print 'elem norm: {}'.format(cost) 
+       # print 'avg norm: {}'.format((nenvA*nenvB)) 
+       
    else: raise ValueError("Unknown global fingerprint mode ", mode)
    
          
