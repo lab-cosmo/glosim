@@ -65,13 +65,21 @@ def main(kernel, props, mode, trainfrac, csi, sigma, ntests, ttest, savevector="
     ttest=float(ttest)
     if (mode == "sequential" or mode == "all") and ntests>1:
         raise ValueError("No point in having multiple tests when using determininstic train set selection")
-     
+
+    np.random.seed(12345) #!TODO MAKE IT AN OPTION
     # reads kernel
     kij = np.loadtxt(kernel)
     nel = len(kij)
     # heuristics to see if this is a kernel or a similarity matrix!!
+    
     if kij[0,0]<1e-8:
-        kij = (1-0.5*kij*kij)
+        kij *= kij # builds square distance matrix
+        ssum = kij.sum(axis=0)/nel # row sum (matrix should be symmetric so same as col sum!
+        for i in xrange(nel):
+            kij[i,:]-=ssum
+            kij[:,i]-=ssum
+        kij += ssum.sum()/nel
+        kij *= -0.5
         
     
     # reads index, if available
