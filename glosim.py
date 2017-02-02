@@ -21,6 +21,7 @@ from time import ctime
 from datetime import datetime
 import gc
 import cPickle as pickle
+import code
 
 # tries really hard to flush any buffer to disk!
 def flush(stream):
@@ -88,7 +89,7 @@ def main(filename, nd, ld, coff, cotw, gs, mu, centerweight, periodic, kmode, no
        r=pickle.load(file)
        file.close()
        gc.enable()
-       print >> sys.stderr, "Using Alchemy rules: ", r,"\n"
+       #print >> sys.stderr, "Using Alchemy rules: ", r,"\n"
        alchem = alchemy(mu=mu,rules=r)
     else:
        r=alchemyrules.replace('"', '').strip()
@@ -105,6 +106,7 @@ def main(filename, nd, ld, coff, cotw, gs, mu, centerweight, periodic, kmode, no
     if verbose:
         qlog=quippy.AtomsWriter("log.xyz")
         slog=open("log.soap", "w")
+        avgslog=open('log.avgsoap','w')
 
     # set flag for the envsim mode    
     fl_envsim = 0
@@ -191,20 +193,31 @@ def main(filename, nd, ld, coff, cotw, gs, mu, centerweight, periodic, kmode, no
                     si.env = []
                 sl.append(si)
             if verbose:
-                slog.write("# Frame %d \n" % (iframe))
-                fii = open(prefix+".environ-"+str(iframe)+"-"+str(iframe)+".dat", "w")
-                for sp, el in si.env.iteritems():
-                    ik=0
-                    for ii in el:
-                        slog.write("# Species %d Environment %d \n" % (sp, ik))
-                        ik+=1
-                        for p, s in ii.soaps.iteritems():
-                            slog.write("%d %d   " % p)
-                            for sj in s:
-                                slog.write("%8.4e " %(sj))                        
-                            slog.write("\n")
+              slog.write("# Frame %d \n" % (iframe))
+              fii = open(prefix+".environ-"+str(iframe)+"-"+str(iframe)+".dat", "w")
+              for sp, el in si.env.iteritems():
+                  ik=0
+                  for ii in el:
+                      slog.write("# Species %d Environment %d \n" % (sp, ik))
+                      ik+=1
+                      for p, s in ii.soaps.iteritems():
+                          slog.write("%d %d   " % p)
+                          for sj in s:
+                              slog.write("%8.4e " %(sj))                        
+                          slog.write("\n")
+              
+              # Write the averaged soaps 
+              avgslog.write('# Frame {}: \n'.format(iframe))
+              for pair in si.globenv.soaps:
+                  avgslog.write('{} \t '.format(pair))
+                  for it in xrange(len(si.globenv.soaps[pair])):
+                      avgslog.write('{:.5e} '.format(si.globenv.soaps[pair][it]))
+                  avgslog.write(' \n')
+                  
+              avgslog.write(' \n')
+              
             else:
-               fii = None
+              fii = None
             sii,senvii = structk(si, si, alchem, periodic, mode=kmode, fout=fii, peps=permanenteps, gamma=reggamma, zeta=zeta, xspecies=xspecies)        
              
             if fl_envsim:

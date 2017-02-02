@@ -40,7 +40,8 @@ class environ:
          return self.soaps[siab]
       else: 
          if len(self.soaps)==0: # dummy atoms environments just returned as isolated species!            
-            if sa==sb and sa==self.z: return self.dummy1
+            if sa==sb and sa==self.z: 
+              return self.dummy1
          return self.dummy0  
          
    def __init__(self, nmax, lmax, salchem=None, specie=0):            
@@ -159,14 +160,14 @@ def envk(envA, envB, alchem=alchemy()):
        #union of atom kinds present in the two environments   
        zspecies = sorted(list(set(envA.zspecies+envB.zspecies)))
        nsp = len(zspecies)
-   
+    
        # alchemical matrix for species
        alchemAB = np.zeros((nsp,nsp), float)
        for sA in xrange(nsp):
            for sB in xrange(sA+1):
                alchemAB[sA,sB] = alchem.getpair(zspecies[sB],zspecies[sA])
                alchemAB[sB,sA] = alchemAB[sA,sB]
-       
+               
        # prepares the lists of pairs to avoid calling many times getpair further down the line
        eB = []
        for iB1 in xrange(nsp):
@@ -188,5 +189,5 @@ def envk(envA, envB, alchem=alchemy()):
                     if alchemAB[iA2,iB2] == 0.0: continue
                     sB2 = zspecies[iB2]
                     dotp += np.dot(eA, eB[iB1][iB2]) * alchemAB[iA1,iB1] * alchemAB[iA2,iB2]
-       
+   
    return dotp
