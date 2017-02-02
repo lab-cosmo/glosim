@@ -46,7 +46,7 @@ class structure:
       else: return True
    
       
-   def parse(self, fat, coff=5.0, nmax=4, lmax=3, gs=0.5, cw=1.0, nocenter=[], noatom=[], kit=None):
+   def parse(self, fat, coff=5.0, cotw=0.5, nmax=4, lmax=3, gs=0.5, cw=1.0, nocenter=[], noatom=[], kit=None):
       """ Takes a frame in the QUIPPY format and computes a list of its environments. """
       
       # removes atoms that are to be ignored
@@ -79,7 +79,7 @@ class structure:
             continue # Option to skip some environments
          
          # first computes the descriptors of species that are present
-         desc = quippy.descriptors.Descriptor("soap central_weight="+str(cw)+"  covariance_sigma0=0.0 atom_sigma="+str(gs)+" cutoff="+str(coff)+" n_max="+str(nmax)+" l_max="+str(lmax)+' '+lspecies+' Z='+str(sp) )   
+         desc = quippy.descriptors.Descriptor("soap central_weight="+str(cw)+"  covariance_sigma0=0.0 atom_sigma="+str(gs)+" cutoff="+str(coff)+" cutoff_transition_width="+str(cotw)+" n_max="+str(nmax)+" l_max="+str(lmax)+' '+lspecies+' Z='+str(sp) )   
          try:
             psp =np.asarray(desc.calc(at,desc.dimensions(),self.species[sp])).T
          except TypeError:
@@ -136,7 +136,7 @@ def lcm(a,b):
 #    
 #   return envk(strucA.globenv, strucB.globenv, alchem) 
 
-def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout=None, peps=0.0, gamma=1.0, csi=1.0):
+def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout=None, peps=0.0, gamma=1.0, zeta=1.0, xspecies=False):
    # computes the SOAP similarity KERNEL between two structures by combining atom-centered kernels
    # possible kernel modes include:
    #   average :  scalar product between averaged kernels
@@ -147,8 +147,8 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
    if mode=="fastavg":
        genvA=strucA.globenv
        genvB=strucB.globenv        
-       return envk(genvA, genvB, alchem)**csi, 0
-   elif mode=="species": 
+       return envk(genvA, genvB, alchem)**zeta, 0
+   elif mode=="fastspecies": 
        # for now, only implement standard Kronecker alchemy
        senvB = environ(strucB.nmax, strucB.lmax, strucB.alchem)
        kk = 0
@@ -160,7 +160,7 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
          senvB = environ(strucB.nmax, strucB.lmax, strucB.alchem)   
          for ib in xrange(strucB.getnz(za)):
             senvB.add(strucB.getenv(za, ib))
-         kk += envk(senvA, senvB, alchem)**csi
+         kk += envk(senvA, senvB, alchem)**zeta
        
        kk/=strucA.nenv*strucB.nenv
        return kk,0
@@ -210,9 +210,9 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
                    # includes a penalty dependent on "mu", in a way that is consistent with the definition of kernel distance
                    kk[ika,ikb] = exp(-alchem.mu)
                else:
-                  #if za == zb:  #uncomment to zero out kernels between different species
-                    kk[ika,ikb] = envk(envA, envB, alchem)**csi              
-                  #else: kk[ika,ikb] = 0
+                  if za == zb or not xspecies:  #uncomment to zero out kernels between different species
+                    kk[ika,ikb] = envk(envA, envB, alchem)**zeta              
+                  else: kk[ika,ikb] = 0
                ikb+=1
          ika+=1
    aidx = {}
@@ -271,6 +271,10 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
        # print cost, kk.sum()/(nenv*nenv), envk(strucA.globenv, strucB.globenv, alchem)
    elif mode == "average":
        cost = kk.sum()/(nenvA*nenvB)
+       # print 'elem: {}'.format(kk.sum()) 
+       # print 'elem norm: {}'.format(cost) 
+       # print 'avg norm: {}'.format((nenvA*nenvB)) 
+       
    else: raise ValueError("Unknown global fingerprint mode ", mode)
    
          
