@@ -27,7 +27,10 @@ import code
 def flush(stream):
     stream.flush()
     os.fsync(stream)
-   
+def atomicno_to_sym(atno):
+  pdict={1: 'H', 2: 'He', 3: 'Li', 4: 'Be', 5: 'B', 6: 'C', 7: 'N', 8: 'O', 9: 'F', 10: 'Ne', 11: 'Na', 12: 'Mg', 13: 'Al', 14: 'Si', 15: 'P', 16: 'S', 17: 'Cl', 18: 'Ar', 19: 'K', 20: 'Ca', 21: 'Sc', 22: 'Ti', 23: 'V', 24: 'Cr', 25: 'Mn', 26: 'Fe', 27: 'Co', 28: 'Ni', 29: 'Cu', 30: 'Zn', 31: 'Ga', 32: 'Ge', 33: 'As', 34: 'Se', 35: 'Br', 36: 'Kr', 37: 'Rb', 38: 'Sr', 39: 'Y', 40: 'Zr', 41: 'Nb', 42: 'Mo', 43: 'Tc', 44: 'Ru', 45: 'Rh', 46: 'Pd', 47: 'Ag', 48: 'Cd', 49: 'In', 50: 'Sn', 51: 'Sb', 52: 'Te', 53: 'I', 54: 'Xe', 55: 'Cs', 56: 'Ba', 57: 'La', 58: 'Ce', 59: 'Pr', 60: 'Nd', 61: 'Pm', 62: 'Sm', 63: 'Eu', 64: 'Gd', 65: 'Tb', 66: 'Dy', 67: 'Ho', 68: 'Er', 69: 'Tm', 70: 'Yb', 71: 'Lu', 72: 'Hf', 73: 'Ta', 74: 'W', 75: 'Re', 76: 'Os', 77: 'Ir', 78: 'Pt', 79: 'Au', 80: 'Hg', 81: 'Tl', 82: 'Pb', 83: 'Bi', 84: 'Po', 85: 'At', 86: 'Rn', 87: 'Fr', 88: 'Ra', 89: 'Ac', 90: 'Th', 91: 'Pa', 92: 'U', 93: 'Np', 94: 'Pu', 95: 'Am', 96: 'Cm', 97: 'Bk', 98: 'Cf', 99: 'Es', 100: 'Fm', 101: 'Md', 102: 'No', 103: 'Lr', 104: 'Rf', 105: 'Ha', 106: 'Sg', 107: 'Ns', 108: 'Hs', 109: 'Mt', 110: 'Unn', 111: 'Unu'}   
+  return pdict[atno]
+
 
 def main(filename, nd, ld, coff, cotw, gs, mu, centerweight, periodic, kmode, nonorm, permanenteps, reggamma, nocenter, envsim, noatom, nprocs, verbose=False, envij=None, usekit=False, kit="auto", alchemyrules="none",prefix="",nlandmark=0, printsim=False,ref_xyz="",partialsim=False,lowmem=False,restartflag=False, zeta=1.0, xspecies=False,alrange=(0,0), refrange=(0,0)):
     start_time = datetime.now()
@@ -54,7 +57,22 @@ def main(filename, nd, ld, coff, cotw, gs, mu, centerweight, periodic, kmode, no
        print >> sys.stderr,"   "
     if prefix=="": prefix=filename
     if prefix.endswith('.xyz'): prefix=prefix[:-4]
-
+    prefix=prefix+"-n"+str(nd)+"-l"+str(ld)+"-c"+str(coff)+"-g"+str(gs)+"_"+kmode
+    if (kmode == "rematch"): prefix=prefix+"-"+str(reggamma)
+    if (kmode == "average"): prefix=prefix+"-xi"+str(zeta)
+    if (len(nocenter)>0):
+        nclist=""
+        for sp in nocenter:
+           nclist=nclist+atomicno_to_sym(sp)
+        prefix=prefix+"_nocenter-"+nclist
+    if (len(noatom)>0):
+        nclist=""
+        for sp in noatom:
+           nclist=nclist+atomicno_to_sym(sp)
+        prefix=prefix+"_exclude-"+nclist
+    if nonorm : prefix=prefix+'_nnrm'
+    
+    print >> sys.stderr, "using output prefix =", prefix
     # Reads input file using quippy
     print >> sys.stderr, "Reading input file", filename
     (first,last)=alrange; 
