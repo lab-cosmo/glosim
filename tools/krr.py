@@ -67,6 +67,9 @@ def main(kernel, props, mode, trainfrac, csi, sigma, ntests, ttest, savevector="
         raise ValueError("No point in having multiple tests when using determininstic train set selection")
 
     np.random.seed(12345) #!TODO MAKE IT AN OPTION
+
+    if mode=="manual":
+       mtrain = np.loadtxt("train.idx")
     # reads kernel
     kij = np.loadtxt(kernel)
     nel = len(kij)
@@ -116,8 +119,6 @@ def main(kernel, props, mode, trainfrac, csi, sigma, ntests, ttest, savevector="
     ctest=0
     ctrue=0
     
-    if mode=="manual":
-        mtrain = np.loadtxt("train.idx")
     if mode == "all" :
             tp = p[:]
             tk = kij[:][:].copy()

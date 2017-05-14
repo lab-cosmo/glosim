@@ -5,7 +5,7 @@ import numpy as np
 import math
 
 bufsize = 1000
-def main(kernel, props, weights, csi):
+def main(kernel, props, weights, csi, noidx=False):
     csi=float(csi)    
     wvec = np.loadtxt(weights)
     tc = np.asarray(wvec[:,0], float)
@@ -43,7 +43,7 @@ def main(kernel, props, weights, csi):
         kij = kij**csi
         krp = np.dot(kij,tc)
         for k in xrange(nk):
-            if  ktot+k in irows:
+            if (not noidx) and (ktot+k in irows):
                 lab = "TRAIN"
                 trainmae += abs(krp[k] - p[ktot+k])
                 trainrms += (krp[k] - p[ktot+k])**2
@@ -57,8 +57,10 @@ def main(kernel, props, weights, csi):
                 ntest +=1 
             print k+ktot, p[ktot+k], krp[k], lab
         ktot += nk
-    print "# Train points MAE=%f  RMSE=%f  SUP=%f" % (trainmae/ntrain, np.sqrt(trainrms/ntrain), trainsup)
-    print "# Test points  MAE=%f  RMSE=%f  SUP=%f " % (testmae/ntest, np.sqrt(testrms/ntest), testsup)    
+    if ntrain >0:
+        print "# Train points MAE=%f  RMSE=%f  SUP=%f" % (trainmae/ntrain, np.sqrt(trainrms/ntrain), trainsup)
+    if ntest>0:
+        print "# Test points  MAE=%f  RMSE=%f  SUP=%f " % (testmae/ntest, np.sqrt(testrms/ntest), testsup)    
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="""Computes KRR predictions from a weights vector obtained from a previous run of krr.py with --saveweights.""")
@@ -66,8 +68,9 @@ if __name__ == '__main__':
     parser.add_argument("weights", nargs=1, help="Weights vector") 
     parser.add_argument("props", nargs=1, help="Property file (for cross-check)")
     parser.add_argument("--csi", type=float, default='1.0', help="Kernel scaling")
+    parser.add_argument("--noidx", action="store_true", help="Ignores indices and treats all points as testing points")
     
     args = parser.parse_args()
     
-    main(kernel=args.kernel[0], props=args.props[0], weights=args.weights[0], csi=args.csi)
+    main(kernel=args.kernel[0], props=args.props[0], weights=args.weights[0], csi=args.csi, noidx=args.noidx)
 
