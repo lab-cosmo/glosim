@@ -204,7 +204,7 @@ def main(filename, nd, ld, coff, cotw, gs, mu, centerweight, periodic, kmode, no
             else:
                 si = structure(alchem)
                 sys.stderr.write("Frame %d                              \r" %(iframe) )
-                si.parse(at, coff, cotw, nd, ld, gs, centerweight, nocenter, noatom, kit = kit)       
+                si.parse(at, coff, cotw, nd, ld, gs, centerweight, nocenter, noatom, kit = kit) #, soapdump = sys.stdout)       
                 
                 # discard the list of all environments if they are not needed for this calculation
                 if kmode == "fastavg" and not verbose: 
