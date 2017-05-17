@@ -107,7 +107,7 @@ def main(filename, nd, ld, coff, cotw, gs, mu, centerweight, periodic, kmode, no
        r=pickle.load(file)
        file.close()
        gc.enable()
-       #print >> sys.stderr, "Using Alchemy rules: ", r,"\n"
+       print >> sys.stderr, "Using Alchemy rules: ", r,"\n"
        alchem = alchemy(mu=mu,rules=r)
     else:
        r=alchemyrules.replace('"', '').strip()
@@ -845,7 +845,7 @@ if __name__ == '__main__':
       parser.add_argument("--gamma", type=float, default="1.0", help="Regularization for entropy-smoothed best-match kernel")
       parser.add_argument("--zeta", type=float, default="1.0", help="Exponent for the atomic SOAP kernel")
       parser.add_argument("--kit", type=str, default="auto", help="Dictionary-style kit specification (e.g. --kit '{4:1,6:10}'")
-      parser.add_argument("--alchemy_rules", type=str, default="none", help='Dictionary-style rule specification in quote (e.g. --alchemy_rules "{(6,7):1,(6,8):1}"')
+      parser.add_argument("--alchemy_rules", type=str, default="none", help='Dictionary-style rule specification in quote (e.g. --alchemy_rules "{(6,7):1,(6,8):1}". If "read" is specified, the dictionary will be fetched from a alchemy.pickle file in the current folder.')
       parser.add_argument("--kernel", type=str, default="match", help="Global kernel mode (e.g. --kernel average / match / rematch / species / fastavg ")      
       parser.add_argument("--nonorm",  action="store_true", help="Does not normalize structural kernels")   
       parser.add_argument("--permanenteps", type=float, default="0.0", help="Tolerance level for approximate permanent (e.g. --permanenteps 1e-4")     

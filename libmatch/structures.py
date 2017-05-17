@@ -79,7 +79,7 @@ class structure:
             continue # Option to skip some environments
          
          # first computes the descriptors of species that are present
-         desc = quippy.descriptors.Descriptor("soap central_weight="+str(cw)+"  covariance_sigma0=0.0 atom_sigma="+str(gs)+" cutoff="+str(coff)+" cutoff_transition_width="+str(cotw)+" n_max="+str(nmax)+" l_max="+str(lmax)+' '+lspecies+' Z='+str(sp) )   
+         desc = quippy.descriptors.Descriptor("soap central_reference_all_species=F central_weight="+str(cw)+"  covariance_sigma0=0.0 atom_sigma="+str(gs)+" cutoff="+str(coff)+" cutoff_transition_width="+str(cotw)+" n_max="+str(nmax)+" l_max="+str(lmax)+' '+lspecies+' Z='+str(sp) )   
          try:
             psp =np.asarray(desc.calc(at,desc.dimensions(),self.species[sp])).T
          except TypeError:
