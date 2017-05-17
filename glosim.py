@@ -109,13 +109,15 @@ def main(filename, nd, ld, coff, cotw, gs, mu, centerweight, periodic, kmode, no
        gc.enable()
        print >> sys.stderr, "Using Alchemy rules: ", r,"\n"
        alchem = alchemy(mu=mu,rules=r)
+       alchemyrules=r
     else:
        r=alchemyrules.replace('"', '').strip()
        r=alchemyrules.replace("'", '').strip()
        r=ast.literal_eval(r)
        print >> sys.stderr, "Using Alchemy rules: ", r,"\n"
        alchem = alchemy(mu=mu,rules=r)
-      
+       alchemyrules=r
+  
     if lowmem:
        sl = structurelist()
     else:
