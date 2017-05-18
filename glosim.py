@@ -782,7 +782,7 @@ def main(filename, nd, ld, coff, cotw, gs, mu, centerweight, periodic, kmode, no
             #        sim[iframe,jframe]=sim[jframe,iframe]=psim[iframe*nf+jframe]
         if(partialsim):pfkernel.close()
         fkernel = open(prefix+".k", "w")  
-        fkernel.write("# Kernel matrix for %s. Cutoff: %f  COTW: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  SOAP-csi: %f   Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, cotw, nd, ld, gs, mu, centerweight, zeta, periodic, kmode, str(noatom), str(nocenter)) )
+        fkernel.write("# Kernel matrix for %s. Cutoff: %f  COTW: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Zeta: %f   Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, cotw, nd, ld, gs, mu, centerweight, zeta, periodic, kmode, str(noatom), str(nocenter)) )
         if (nonorm):fkernel.write( " Un-normalized kernels " )        
         if (usekit):fkernel.write( " Using reference kit: %s " % (str(kit)) )
         if (alchemyrules!="none"):fkernel.write( " Using alchemy rules: %s " % (alchemyrules) )
