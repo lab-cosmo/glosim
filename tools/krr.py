@@ -176,7 +176,7 @@ def main(kernel, props, mode, trainfrac, csi, sigma, ntests, ttest, savevector="
                         if d2 >= 0:
                             dsel = np.sqrt(d2) #don't assume kernel is normalised
                         elif d2 < -1e-3:
-                            print 'Might have a problem with the kernel matrix'
+                            print 'Might have a problem with the kernel matrix', d2
                         else:
                             dsel = 0.
                         if dsel < ldist[i]:
