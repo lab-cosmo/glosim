@@ -262,8 +262,6 @@ def main(filename, nd, ld, coff, cotw, gs, mu, centerweight, periodic, kmode, no
     
     if (ref_xyz !=""): # If ref landmarks are given and rectangular matrix is the only desired output             
         print >> sys.stderr, "Computing SOAPs"
-        # sets alchemical matrix
-        alchem = alchemy(mu=mu)
         if (lowmem):
           sl_ref = structurelist(basedir="./tmprefstructures/")
         else:
@@ -310,8 +308,8 @@ def main(filename, nd, ld, coff, cotw, gs, mu, centerweight, periodic, kmode, no
                         print >> sys.stderr, "\n Could not Find file for reference frame: ", iframe ,"\n" # At the moment the way it is implemented if it does not exist and recalculate
                         return                                                                 #  it will store the missing frame as first frame file.
                 else:
-                    si = structure(alchem)
-                    si.parse(at, coff, cotw, nd, ld, gs, centerweight, nocenter, noatom, kit = kit)
+                    si = structure(alchem)                    
+                    si.parse(at, coff, cotw, nd, ld, gs, centerweight, nocenter, noatom, kit = kit) #, soapdump = sys.stdout)       
                     if kmode == "fastavg" and not verbose: 
                         si.env = []
                     sl_ref.append(si)
@@ -327,12 +325,12 @@ def main(filename, nd, ld, coff, cotw, gs, mu, centerweight, periodic, kmode, no
                                 for sj in s:
                                     slogref.write("%8.4e " %(sj))
                                 slogref.write("\n")
-                sii,senvii = structk(si, si, alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma, zeta=zeta, xspecies=xspecies)        
+                                
+                sii,senvii = structk(si, si, alchem, periodic, mode=kmode, fout=None, peps=permanenteps, gamma=reggamma, zeta=zeta, xspecies=xspecies)        
                 if fl_envsim:
                       simenv[iframe*nenv:iframe*nenv+nenv,iframe*nenv:iframe*nenv+nenv]=senvii
                 nrm_ref[iframe]=sii        
                 iframe +=1;
-
         print >> sys.stderr, "Computing kernel matrix"
         # must fix the normalization of the similarity matrix!
      #   sys.stderr.write("Computing kernel normalization           \n")
