@@ -280,8 +280,8 @@ def main(kernels, props, kweights, mode, trainfrac, csi, sigma, ntests, ttest, s
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="""Computes KRR and analytics based on a kernel matrix and a property vector.""")
                            
-    parser.add_argument("--kernel", nargs='+', help="Kernel matrix (more than one can be read!)")      
-    parser.add_argument("--props", nargs='+', help="Property file")
+    parser.add_argument("--kernels", nargs='+', type=str, help="Kernel matrix (more than one can be read!)")      
+    parser.add_argument("--props", nargs='+', type=str, help="Property file")
     parser.add_argument("--kweights", default="", type=str, help="Comma-separated list of kernel weights (when multiple kernels are provided)")
     parser.add_argument("--mode", type=str, default="random", help="Train point selection (e.g. --mode all / sequential / random / fps / cur / manual")      
     parser.add_argument("-f", type=float, default='0.5', help="Train fraction")
@@ -295,5 +295,5 @@ if __name__ == '__main__':
     
     args = parser.parse_args()
     
-    main(kernel=args.kernel, props=args.props, kweights=args.kweights, mode=args.mode, trainfrac=args.f, csi=args.csi, 
+    main(kernels=args.kernels, props=args.props, kweights=args.kweights, mode=args.mode, trainfrac=args.f, csi=args.csi, 
          sigma=args.sigma, ntests=args.ntests, ttest=args.truetest,savevector=args.saveweights, refindex=args.refindex, inweights=args.pweights)
