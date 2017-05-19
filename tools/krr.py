@@ -111,7 +111,7 @@ def main(kernels, props, kweights, mode, trainfrac, csi, sigma, ntests, ttest, s
     kij = kij**csi
     
     # reads properties
-    p = np.loadtxt(props)
+    p = np.loadtxt(props[0])  # TODO add support for multiple properties
     
     # chooses test
     testmae=0
