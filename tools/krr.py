@@ -78,6 +78,7 @@ def main(kernels, props, kweights, mode, trainfrac, csi, sigma, ntests, ttest, s
     print "# Using kernels ", kernels, " with weights ", kweights
     kij = np.loadtxt(kernels[0]) * kweights[0]
     for i in xrange(1,len(kernels)):
+       print kernels[i]
        kij += np.loadtxt(kernels[i]) * kweights[i]
     nel = len(kij)
 
