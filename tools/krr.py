@@ -67,7 +67,8 @@ def main(kernels, props, kweights, mode, trainfrac, csi, sigma, ntests, ttest, s
         raise ValueError("No point in having multiple tests when using determininstic train set selection")
 
     np.random.seed(12345) #!TODO MAKE IT AN OPTION
-
+    if mode=="manual":
+       mtrain = np.loadtxt("train.idx")
     if kweights == "":
         kweights = np.ones(len(kernels))
     else:
@@ -126,8 +127,6 @@ def main(kernels, props, kweights, mode, trainfrac, csi, sigma, ntests, ttest, s
     ctest=0
     ctrue=0
     
-    if mode=="manual":
-        mtrain = np.loadtxt("train.idx")
     if mode == "all" :
             tp = p[:]
             tk = kij[:][:].copy()
@@ -136,9 +135,8 @@ def main(kernels, props, kweights, mode, trainfrac, csi, sigma, ntests, ttest, s
             n = len(tp)
             lweight = np.ones(n,np.float64)
             print >> sys.stderr, "Regularization shift ", sigma**2 * vk/vp
-            #print lweight
             for i in xrange(len(tp)):
-                tk[i,i]+=sigma**2 * vk/vp/ lweight[i]  # diagonal regularization times weight!
+                tk[i,i]+=sigma**2 * vk/vp/ lweights[i]  # diagonal regularization times weight!
             tc = np.linalg.solve(tk, tp)
             krp = np.dot(kij[:,:],tc)
             mae=abs(krp[:]-p[:]).sum()/len(p)
@@ -186,7 +184,7 @@ def main(kernels, props, kweights, mode, trainfrac, csi, sigma, ntests, ttest, s
                         if d2 >= 0:
                             dsel = np.sqrt(d2) #don't assume kernel is normalised
                         elif d2 < -1e-3:
-                            print 'Might have a problem with the kernel matrix'
+                            print 'Might have a problem with the kernel matrix: ', d2
                         else:
                             dsel = 0.
                         if dsel < ldist[i]:

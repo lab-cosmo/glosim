@@ -27,7 +27,10 @@ import code
 def flush(stream):
     stream.flush()
     os.fsync(stream)
-   
+def atomicno_to_sym(atno):
+  pdict={1: 'H', 2: 'He', 3: 'Li', 4: 'Be', 5: 'B', 6: 'C', 7: 'N', 8: 'O', 9: 'F', 10: 'Ne', 11: 'Na', 12: 'Mg', 13: 'Al', 14: 'Si', 15: 'P', 16: 'S', 17: 'Cl', 18: 'Ar', 19: 'K', 20: 'Ca', 21: 'Sc', 22: 'Ti', 23: 'V', 24: 'Cr', 25: 'Mn', 26: 'Fe', 27: 'Co', 28: 'Ni', 29: 'Cu', 30: 'Zn', 31: 'Ga', 32: 'Ge', 33: 'As', 34: 'Se', 35: 'Br', 36: 'Kr', 37: 'Rb', 38: 'Sr', 39: 'Y', 40: 'Zr', 41: 'Nb', 42: 'Mo', 43: 'Tc', 44: 'Ru', 45: 'Rh', 46: 'Pd', 47: 'Ag', 48: 'Cd', 49: 'In', 50: 'Sn', 51: 'Sb', 52: 'Te', 53: 'I', 54: 'Xe', 55: 'Cs', 56: 'Ba', 57: 'La', 58: 'Ce', 59: 'Pr', 60: 'Nd', 61: 'Pm', 62: 'Sm', 63: 'Eu', 64: 'Gd', 65: 'Tb', 66: 'Dy', 67: 'Ho', 68: 'Er', 69: 'Tm', 70: 'Yb', 71: 'Lu', 72: 'Hf', 73: 'Ta', 74: 'W', 75: 'Re', 76: 'Os', 77: 'Ir', 78: 'Pt', 79: 'Au', 80: 'Hg', 81: 'Tl', 82: 'Pb', 83: 'Bi', 84: 'Po', 85: 'At', 86: 'Rn', 87: 'Fr', 88: 'Ra', 89: 'Ac', 90: 'Th', 91: 'Pa', 92: 'U', 93: 'Np', 94: 'Pu', 95: 'Am', 96: 'Cm', 97: 'Bk', 98: 'Cf', 99: 'Es', 100: 'Fm', 101: 'Md', 102: 'No', 103: 'Lr', 104: 'Rf', 105: 'Ha', 106: 'Sg', 107: 'Ns', 108: 'Hs', 109: 'Mt', 110: 'Unn', 111: 'Unu'}   
+  return pdict[atno]
+
 
 def main(filename, nd, ld, coff, cotw, gs, mu, centerweight, periodic, kmode, nonorm, permanenteps, reggamma, nocenter, envsim, noatom, nprocs, verbose=False, envij=None, usekit=False, kit="auto", alchemyrules="none",prefix="",nlandmark=0, printsim=False,ref_xyz="",partialsim=False,lowmem=False,restartflag=False, zeta=1.0, xspecies=False,alrange=(0,0), refrange=(0,0)):
     start_time = datetime.now()
@@ -54,7 +57,22 @@ def main(filename, nd, ld, coff, cotw, gs, mu, centerweight, periodic, kmode, no
        print >> sys.stderr,"   "
     if prefix=="": prefix=filename
     if prefix.endswith('.xyz'): prefix=prefix[:-4]
-
+    prefix=prefix+"-n"+str(nd)+"-l"+str(ld)+"-c"+str(coff)+"-g"+str(gs)+"_"+kmode
+    if (kmode == "rematch"): prefix=prefix+"-"+str(reggamma)
+    if (kmode == "average"): prefix=prefix+"-xi"+str(zeta)
+    if (len(nocenter)>0):
+        nclist=""
+        for sp in nocenter:
+           nclist=nclist+atomicno_to_sym(sp)
+        prefix=prefix+"_nocenter-"+nclist
+    if (len(noatom)>0):
+        nclist=""
+        for sp in noatom:
+           nclist=nclist+atomicno_to_sym(sp)
+        prefix=prefix+"_exclude-"+nclist
+    if nonorm : prefix=prefix+'_nnrm'
+    
+    print >> sys.stderr, "using output prefix =", prefix
     # Reads input file using quippy
     print >> sys.stderr, "Reading input file", filename
     (first,last)=alrange; 
@@ -89,15 +107,17 @@ def main(filename, nd, ld, coff, cotw, gs, mu, centerweight, periodic, kmode, no
        r=pickle.load(file)
        file.close()
        gc.enable()
-       #print >> sys.stderr, "Using Alchemy rules: ", r,"\n"
+       print >> sys.stderr, "Using Alchemy rules: ", r,"\n"
        alchem = alchemy(mu=mu,rules=r)
+       alchemyrules=r
     else:
        r=alchemyrules.replace('"', '').strip()
        r=alchemyrules.replace("'", '').strip()
        r=ast.literal_eval(r)
        print >> sys.stderr, "Using Alchemy rules: ", r,"\n"
        alchem = alchemy(mu=mu,rules=r)
-      
+       alchemyrules=r
+  
     if lowmem:
        sl = structurelist()
     else:
@@ -186,7 +206,7 @@ def main(filename, nd, ld, coff, cotw, gs, mu, centerweight, periodic, kmode, no
             else:
                 si = structure(alchem)
                 sys.stderr.write("Frame %d                              \r" %(iframe) )
-                si.parse(at, coff, cotw, nd, ld, gs, centerweight, nocenter, noatom, kit = kit)       
+                si.parse(at, coff, cotw, nd, ld, gs, centerweight, nocenter, noatom, kit = kit) #, soapdump = sys.stdout)       
                 
                 # discard the list of all environments if they are not needed for this calculation
                 if kmode == "fastavg" and not verbose: 
@@ -242,8 +262,6 @@ def main(filename, nd, ld, coff, cotw, gs, mu, centerweight, periodic, kmode, no
     
     if (ref_xyz !=""): # If ref landmarks are given and rectangular matrix is the only desired output             
         print >> sys.stderr, "Computing SOAPs"
-        # sets alchemical matrix
-        alchem = alchemy(mu=mu)
         if (lowmem):
           sl_ref = structurelist(basedir="./tmprefstructures/")
         else:
@@ -290,8 +308,8 @@ def main(filename, nd, ld, coff, cotw, gs, mu, centerweight, periodic, kmode, no
                         print >> sys.stderr, "\n Could not Find file for reference frame: ", iframe ,"\n" # At the moment the way it is implemented if it does not exist and recalculate
                         return                                                                 #  it will store the missing frame as first frame file.
                 else:
-                    si = structure(alchem)
-                    si.parse(at, coff, cotw, nd, ld, gs, centerweight, nocenter, noatom, kit = kit)
+                    si = structure(alchem)                    
+                    si.parse(at, coff, cotw, nd, ld, gs, centerweight, nocenter, noatom, kit = kit) #, soapdump = sys.stdout)       
                     if kmode == "fastavg" and not verbose: 
                         si.env = []
                     sl_ref.append(si)
@@ -307,12 +325,12 @@ def main(filename, nd, ld, coff, cotw, gs, mu, centerweight, periodic, kmode, no
                                 for sj in s:
                                     slogref.write("%8.4e " %(sj))
                                 slogref.write("\n")
-                sii,senvii = structk(si, si, alchem, periodic, mode=kmode, fout=None, peps = permanenteps, gamma=reggamma, zeta=zeta, xspecies=xspecies)        
+                                
+                sii,senvii = structk(si, si, alchem, periodic, mode=kmode, fout=None, peps=permanenteps, gamma=reggamma, zeta=zeta, xspecies=xspecies)        
                 if fl_envsim:
                       simenv[iframe*nenv:iframe*nenv+nenv,iframe*nenv:iframe*nenv+nenv]=senvii
                 nrm_ref[iframe]=sii        
                 iframe +=1;
-
         print >> sys.stderr, "Computing kernel matrix"
         # must fix the normalization of the similarity matrix!
      #   sys.stderr.write("Computing kernel normalization           \n")
@@ -762,7 +780,7 @@ def main(filename, nd, ld, coff, cotw, gs, mu, centerweight, periodic, kmode, no
             #        sim[iframe,jframe]=sim[jframe,iframe]=psim[iframe*nf+jframe]
         if(partialsim):pfkernel.close()
         fkernel = open(prefix+".k", "w")  
-        fkernel.write("# Kernel matrix for %s. Cutoff: %f  COTW: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  SOAP-csi: %f   Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, cotw, nd, ld, gs, mu, centerweight, zeta, periodic, kmode, str(noatom), str(nocenter)) )
+        fkernel.write("# Kernel matrix for %s. Cutoff: %f  COTW: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Zeta: %f   Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, cotw, nd, ld, gs, mu, centerweight, zeta, periodic, kmode, str(noatom), str(nocenter)) )
         if (nonorm):fkernel.write( " Un-normalized kernels " )        
         if (usekit):fkernel.write( " Using reference kit: %s " % (str(kit)) )
         if (alchemyrules!="none"):fkernel.write( " Using alchemy rules: %s " % (alchemyrules) )
@@ -827,7 +845,7 @@ if __name__ == '__main__':
       parser.add_argument("--gamma", type=float, default="1.0", help="Regularization for entropy-smoothed best-match kernel")
       parser.add_argument("--zeta", type=float, default="1.0", help="Exponent for the atomic SOAP kernel")
       parser.add_argument("--kit", type=str, default="auto", help="Dictionary-style kit specification (e.g. --kit '{4:1,6:10}'")
-      parser.add_argument("--alchemy_rules", type=str, default="none", help='Dictionary-style rule specification in quote (e.g. --alchemy_rules "{(6,7):1,(6,8):1}"')
+      parser.add_argument("--alchemy_rules", type=str, default="none", help='Dictionary-style rule specification in quote (e.g. --alchemy_rules "{(6,7):1,(6,8):1}". If "read" is specified, the dictionary will be fetched from a alchemy.pickle file in the current folder.')
       parser.add_argument("--kernel", type=str, default="match", help="Global kernel mode (e.g. --kernel average / match / rematch / species / fastavg ")      
       parser.add_argument("--nonorm",  action="store_true", help="Does not normalize structural kernels")   
       parser.add_argument("--permanenteps", type=float, default="0.0", help="Tolerance level for approximate permanent (e.g. --permanenteps 1e-4")     
