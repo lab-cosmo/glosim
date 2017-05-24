@@ -81,10 +81,12 @@ def main(filename, nmax, lmax, coff, cotw, gs, centerweight, prefix=""):
         for z in at.z: 
             if z in sz: sz[z]+=1
             else: sz[z]=1
-        for (z, nz) in sz.iteritems():            
-            desc = quippy.descriptors.Descriptor("soap central_reference_all_species=F central_weight="+str(centerweight)+
+        for (z, nz) in sz.iteritems():
+            soapstr=("soap central_reference_all_species=F central_weight="+str(centerweight)+
            "  covariance_sigma0=0.0 atom_sigma="+str(gs)+" cutoff="+str(coff)+" cutoff_transition_width="+str(cotw)+
-           " n_max="+str(nmax)+" l_max="+str(lmax)+' '+lspecies+' Z='+str(z) )
+           " n_max="+str(nmax)+" l_max="+str(lmax)+' '+lspecies+' Z='+str(z))
+            desc = quippy.descriptors.Descriptor(soapstr )
+            print soapstr
             psp =np.asarray(desc.calc(at,desc.dimensions(),nz)).T
             soaps[z] = psp
         for z in at.z:
