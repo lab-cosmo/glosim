@@ -24,6 +24,7 @@ class structure:
       self.env={}
       self.species={}
       self.zspecies = []
+      self.atz = []
       self.nenv=0  
       self.alchem=salchem
       if self.alchem is None: self.alchem=alchemy()
@@ -34,6 +35,18 @@ class structure:
          return self.species[sp]
       else: return 0
       
+   def getatomenv(self, i):
+      if i>=len(self.atz):
+          raise IndexError("Trying to access atom past structure size")
+      k=0
+      lsp = {}
+      for z in self.atz:
+         if z in lsp: lsp[z]+=1
+         else: lsp[z] = 0
+         if i==k: 
+             return self.env[z][lsp[z]]           
+         k+=1
+       
    def getenv(self, sp, i):
       if sp in self.env and i<len(self.env[sp]):
          return self.env[sp][i]
@@ -56,8 +69,10 @@ class structure:
          if at.z[s] in noatom: nol.append(s)
       if len(nol)>0: at.remove_atoms(nol)
       
+      
       self.nmax = nmax
       self.lmax = lmax
+      self.atz = at.z.copy()
       self.species = {}
       for z in at.z:      
          if z in self.species: self.species[z]+=1

@@ -332,10 +332,7 @@ def main(filename, nd, ld, coff, cotw, gs, mu, centerweight, periodic, kmode, no
                 nrm_ref[iframe]=sii        
                 iframe +=1;
         print >> sys.stderr, "Computing kernel matrix"
-        # must fix the normalization of the similarity matrix!
-     #   sys.stderr.write("Computing kernel normalization           \n")
-#        for iframe in range (0, nf_ref):           
-
+        
         sim = np.zeros((nf,nf_ref))
         sys.stderr.write("Computing Similarity Matrix           \n")
         if (partialsim): 

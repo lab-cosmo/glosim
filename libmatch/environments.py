@@ -34,7 +34,6 @@ class alchemy:
 
 class environ:   
    def getpair(self, sa, sb):
-      # siab = sidx(sa, sb)
       siab = (sa,sb) # the power spectra are not fully symmetric with respect to exchange of species index, unless one also exchanges n1 and n2, which is a mess.
       if siab in self.soaps:               
          return self.soaps[siab]
@@ -146,7 +145,7 @@ def envk(envA, envB, alchem=alchemy()):
    #zspecies = envA.zspecies
    #zspecies = envA.zspecies
    #print "ENV CHECK A", envA.zspecies
-   #'print "ENV CHECK B", sorted(list(set(envA.zspecies+envB.zspecies)))
+   #print "ENV CHECK B", sorted(list(set(envA.zspecies+envB.zspecies)))
          
    
    if len(alchem.rules) == 0 : # special case, only sum over diagonal bits
