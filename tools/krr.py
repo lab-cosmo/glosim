@@ -56,7 +56,7 @@ def randomsubset(ndata, nsel, plist=None):
             cplist[j] -= psel
     return rdata
 
-def main(kernel, props, mode, trainfrac, csi, sigma, ntests, ttest, savevector="", refindex="", inweights=""):
+def main(kernels, props, kweights, mode, trainfrac, csi, sigma, ntests, ttest, savevector="", refindex="", inweights=""):
 
     trainfrac=float(trainfrac) 
     csi = float(csi)
@@ -67,12 +67,21 @@ def main(kernel, props, mode, trainfrac, csi, sigma, ntests, ttest, savevector="
         raise ValueError("No point in having multiple tests when using determininstic train set selection")
 
     np.random.seed(12345) #!TODO MAKE IT AN OPTION
-
     if mode=="manual":
        mtrain = np.loadtxt("train.idx")
-    # reads kernel
-    kij = np.loadtxt(kernel)
+    if kweights == "":
+        kweights = np.ones(len(kernels))
+    else:
+        kweights = np.asarray(kweights.split(","),float)
+    kweights /= kweights.sum()
+    # reads kernel(s)
+    print "# Using kernels ", kernels, " with weights ", kweights
+    kij = np.loadtxt(kernels[0]) * kweights[0]
+    for i in xrange(1,len(kernels)):
+       print kernels[i]
+       kij += np.loadtxt(kernels[i]) * kweights[i]
     nel = len(kij)
+
     # heuristics to see if this is a kernel or a similarity matrix!!
     
     if kij[0,0]<1e-8:
@@ -103,7 +112,7 @@ def main(kernel, props, mode, trainfrac, csi, sigma, ntests, ttest, savevector="
     kij = kij**csi
     
     # reads properties
-    p = np.loadtxt(props)
+    p = np.loadtxt(props[0])  # TODO add support for multiple properties
     
     # chooses test
     testmae=0
@@ -272,8 +281,9 @@ def main(kernel, props, mode, trainfrac, csi, sigma, ntests, ttest, savevector="
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="""Computes KRR and analytics based on a kernel matrix and a property vector.""")
                            
-    parser.add_argument("kernel", nargs=1, help="Kernel matrix")      
-    parser.add_argument("props", nargs=1, help="Property file")
+    parser.add_argument("--kernels", nargs='+', type=str, help="Kernel matrix (more than one can be read!)")      
+    parser.add_argument("--props", nargs='+', type=str, help="Property file")
+    parser.add_argument("--kweights", default="", type=str, help="Comma-separated list of kernel weights (when multiple kernels are provided)")
     parser.add_argument("--mode", type=str, default="random", help="Train point selection (e.g. --mode all / sequential / random / fps / cur / manual")      
     parser.add_argument("-f", type=float, default='0.5', help="Train fraction")
     parser.add_argument("--truetest", type=float, default='0.0', help="Take these points out from the selection procedure")
@@ -286,5 +296,5 @@ if __name__ == '__main__':
     
     args = parser.parse_args()
     
-    main(kernel=args.kernel[0], props=args.props[0], mode=args.mode, trainfrac=args.f, csi=args.csi, 
+    main(kernels=args.kernels, props=args.props, kweights=args.kweights, mode=args.mode, trainfrac=args.f, csi=args.csi, 
          sigma=args.sigma, ntests=args.ntests, ttest=args.truetest,savevector=args.saveweights, refindex=args.refindex, inweights=args.pweights)
