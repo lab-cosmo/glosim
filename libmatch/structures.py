@@ -100,11 +100,9 @@ class structure:
          if not soapdump is None: sys.stderr.write("SOAP STRING:    "+"soap central_reference_all_species=F central_weight="+str(cw)+"  covariance_sigma0=0.0 atom_sigma="+str(gs)+" cutoff="+str(coff)+" cutoff_transition_width="+str(cotw)+" n_max="+str(nmax)+" l_max="+str(lmax)+' '+lspecies+' Z='+str(sp)+"\n")
          desc = quippy.descriptors.Descriptor("soap central_reference_all_species=F central_weight="+str(cw)+"  covariance_sigma0=0.0 atom_sigma="+str(gs)+" cutoff="+str(coff)+" cutoff_transition_width="+str(cotw)+" n_max="+str(nmax)+" l_max="+str(lmax)+' '+lspecies+' Z='+str(sp) )   
          try:
-            psp =np.asarray(desc.calc(at,desc.dimensions(),self.species[sp])).T
+            psp = desc.calc(at)["descriptor"].T
          except TypeError:
-            psp = quippy.fzeros((desc.dimensions(),desc.descriptor_sizes(at)[0]))
-            desc.calc(at,descriptor_out=psp)
-            psp = np.array(psp.T)
+            print("Interface change in QUIP/GAP. Update your code first.")
 
          if not soapdump is None:
             soapdump.write("Specie %d - %d atoms\n"% (sp,len(psp)))
