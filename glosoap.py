@@ -87,7 +87,7 @@ def main(filename, nmax, lmax, coff, cotw, gs, centerweight, prefix=""):
            " n_max="+str(nmax)+" l_max="+str(lmax)+' '+lspecies+' Z='+str(z))
             desc = quippy.descriptors.Descriptor(soapstr )
             print soapstr
-            soaps[z] = desc.calc(at)["descriptor"]
+            soaps[z] = desc.calc(at)["descriptor"].T
         for z in at.z:
             fout.write("%3s  " % (atomicno_to_sym(z)))
             np.savetxt(fout, [ soaps[z][len(soaps[z])-sz[z]] ])
