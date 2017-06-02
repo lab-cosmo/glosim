@@ -66,7 +66,6 @@ def main(filename, nmax, lmax, coff, cotw, gs, centerweight, prefix=""):
     lspecies = 'n_species='+str(len(zsp))+' species_Z={ '
     for z in zsp: lspecies = lspecies + str(z) + ' '
     lspecies = lspecies + '}'   
-    #lspecies='n_species=3 species_Z={1 6 7} ' 
     print lspecies
     fout=open(prefix+".soap","w")
     for at in al:
