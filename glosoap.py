@@ -66,7 +66,7 @@ def main(filename, nmax, lmax, coff, cotw, gs, centerweight, prefix=""):
     lspecies = 'n_species='+str(len(zsp))+' species_Z={ '
     for z in zsp: lspecies = lspecies + str(z) + ' '
     lspecies = lspecies + '}'   
-    lspecies='n_species=3 species_Z={1 6 7} ' 
+    #lspecies='n_species=3 species_Z={1 6 7} ' 
     print lspecies
     fout=open(prefix+".soap","w")
     for at in al:
@@ -87,7 +87,7 @@ def main(filename, nmax, lmax, coff, cotw, gs, centerweight, prefix=""):
            " n_max="+str(nmax)+" l_max="+str(lmax)+' '+lspecies+' Z='+str(z))
             desc = quippy.descriptors.Descriptor(soapstr )
             print soapstr
-            soaps[z] = desc.calc(at)["descriptor"].T
+            soaps[z] = desc.calc(at)["descriptor"]
         for z in at.z:
             fout.write("%3s  " % (atomicno_to_sym(z)))
             np.savetxt(fout, [ soaps[z][len(soaps[z])-sz[z]] ])
