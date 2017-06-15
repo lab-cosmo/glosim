@@ -56,36 +56,42 @@ def randomsubset(ndata, nsel, plist=None):
             cplist[j] -= psel
     return rdata
 
-
-
-def farthestPointSampling(kernel,nbOfFrames,nbOfLandmarks,initalLandmark=None,listOfDiscardedPoints=[],seed=10,verbose=False):
+def farthestPointSampling(kernel,nbOfFrames,nbOfLandmarks,seed=10,initalLandmark=None,listOfDiscardedPoints=None,verbose=False):
     np.random.seed(seed)
     LandmarksIdx = np.zeros(nbOfLandmarks,int)
+    if listOfDiscardedPoints is None:
+        listOfDiscardedPoints = []
     if initalLandmark is None:
         isel = int(np.random.uniform()*nbOfFrames)
         while isel in listOfDiscardedPoints:
             isel=int(np.random.uniform()*nbOfFrames)
     else:
         isel = initalLandmark
-
+    
+    diag = np.diag(kernel)
+    
     ldist = 1e100*np.ones(nbOfFrames,float)
-    imin = np.zeros(nbOfFrames,int) # index of the closest FPS grid point
+    
     LandmarksIdx[0] = isel
     nontrue = np.setdiff1d(range(nbOfFrames), listOfDiscardedPoints)
+    
     for nsel in xrange(1,nbOfLandmarks):
-        dmax = 0
+        dmax = 0*np.ones(nbOfFrames,float)
         imax = 0       
-        for i in nontrue:
-            dsel = np.sqrt(kernel[i,i]+kernel[isel,isel]-2*kernel[i,isel]) #don't assume kernel is normalised
-            if dsel < ldist[i]:
-               imin[i] = nsel-1                    
-               ldist[i] = dsel
-            if ldist[i] > dmax:
-                dmax = ldist[i]; imax = i
-        if verbose is True:
-            print "selected ", isel, " distance ", dmax
-        isel = imax
+        distLine = np.sqrt(kernel[isel,isel] + diag - 2 * kernel[isel,:])
+        
+        dsel = distLine[nontrue]
+        
+        low = dsel < ldist
+        ldist[low] = dsel[low]
+        larg = ldist > dmax
+        dmax[larg] = ldist[larg]
+        
+        isel = dmax.argmax()
         LandmarksIdx[nsel] = isel
+        if verbose is True:
+            print "selected ", isel, " distance ", dmax[isel]
+            
     return LandmarksIdx
 
 def main(kernel, props, mode, nland,output="distance", prefix=""):
