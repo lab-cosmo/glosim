@@ -161,7 +161,8 @@ def Soap2AlchemySoap(rawsoap, spkit, nmax, lmax):
     return alchemySoap
 
 
-def get_alchemySoaps(atoms, centerweight, gaussian_width, cutoff, cutoff_transition_width , nmax, lmax):
+def get_Soaps(atoms,chem_channels=False, centerweight=1.0, gaussian_width=0.5, cutoff=3.5,
+                     cutoff_transition_width=0.5 , nmax=8, lmax=6):
     '''
     Compute the SOAP vectors for each atomic environment in atoms and
     reorder them into chemical channels.
@@ -181,7 +182,7 @@ def get_alchemySoaps(atoms, centerweight, gaussian_width, cutoff, cutoff_transit
                        items: SOAP vector, flat numpy array)
     '''
 
-    alchemySoaps = []
+    Soaps = []
     # get the set of species their maximum number across atoms
     spkitMax = get_spkitMax(atoms)
 
@@ -197,22 +198,67 @@ def get_alchemySoaps(atoms, centerweight, gaussian_width, cutoff, cutoff_transit
 
         # chemical channel separation for each central atom species
         # and each atomic environment
-        alchemySoap = {}
-        for (z, soap) in rawsoaps.iteritems():
-            Nenv, Npowerspectrum = soap.shape
-            lsp = []
-            # loop over the local environments of specie z
-            for it in xrange(Nenv):
-                # soap[it] is (1,Npowerspectrum) so need to transpose it
-                #  convert the soap vector of an environment from quippy descriptor to soap vectors
-                # with chemical channels.
-                lsp.append(Soap2AlchemySoap(soap[it].T, spkit, nmax, lmax))
-            # gather list of environment over the atomic number
-            alchemySoap[z] = lsp
-        # gather soaps over the atom
-        alchemySoaps.append(alchemySoap)
+        if chem_channels:
+            alchemySoap = {}
+            for (z, soap) in rawsoaps.iteritems():
+                Nenv, Npowerspectrum = soap.shape
+                lsp = []
+                # loop over the local environments of specie z
+                for it in xrange(Nenv):
+                    # soap[it] is (1,Npowerspectrum) so need to transpose it
+                    #  convert the soap vector of an environment from quippy descriptor to soap vectors
+                    # with chemical channels.
+                    lsp.append(Soap2AlchemySoap(soap[it].T, spkit, nmax, lmax))
+                # gather list of environment over the atomic number
+                alchemySoap[z] = lsp
+            # gather soaps over the atom
+            Soaps.append(alchemySoap)
+        # out put rawSoap
+        else:
+            Soaps.append(rawsoaps)
 
-    return alchemySoaps
+    return Soaps
+
+
+def get_AvgSoaps(atoms, centerweight=1.0, gaussian_width=0.5, cutoff=3.5,
+                 cutoff_transition_width=0.5, nmax=8, lmax=6, chem_channels=False):
+    '''
+    Compute the average SOAP vectors for each atomic environment in atoms and
+    reorder them into chemical channels.
+
+    :param atoms: list of quippy Atoms object
+    :param centerweight: Center atom weight
+    :param gaussian_width: Atom Gaussian std
+    :param cutoff: Cutoff radius for each atomic environment in the unit of cell and positions.
+    :param cutoff_transition_width: Steepness of the smooth environmental cutoff radius. Smaller -> steeper
+    :param nmax: Number of radial basis functions.
+    :param lmax: Number of Spherical harmonics.
+    :return: Nested List/Dictionary: list->atoms,
+                dict->(keys:chemical channel, (sp1,sp2) sp* is atomic number
+                      inside the atomic environment),
+                       items: SOAP vector, flat numpy array)
+    '''
+    AvgSoaps = []
+    # get the set of species their maximum number across atoms
+    spkitMax = get_spkitMax(atoms)
+    for atom in atoms:
+        # to avoid side effect due to pointers
+        atm = atom.copy()
+        # get the set of species their number across atom
+        spkit = get_spkit(atm)
+        # get the soap vectors (power spectra) for each atomic environments in atm
+        rawsoaps = get_soap(atm, spkit, spkitMax, centerweight, gaussian_width,
+                            cutoff, cutoff_transition_width, nmax, lmax)
+        # compute the average soap over an atomic environment
+        avgrawsoap = np.concatenate(rawsoaps.values(), axis=0).sum(axis=0)
+
+        # chemical channel separation for each each atomic environment
+        if chem_channels:
+            AvgSoaps.append(Soap2AlchemySoap(avgrawsoap, spkit, nmax, lmax))
+        # output average rawSoaps
+        else:
+            AvgSoaps.append(avgrawsoap)
+    return AvgSoaps
 
 def dumpAlchemySoapstxt(alchemySoaps,fout):
     '''
@@ -304,8 +350,8 @@ if __name__ == '__main__':
     # Reads the file and create a list of quippy Atoms object
     atoms = qp.AtomsList(filename, start=first, stop=last)
 
-    alchemySoaps = get_alchemySoaps(atoms, centerweight, gaussian_width, cutoff,
-                     cutoff_transition_width, nmax, lmax)
+    alchemySoaps = get_Soaps(atoms, centerweight=centerweight, gaussian_width=gaussian_width, cutoff=cutoff,
+                     cutoff_transition_width=cutoff_transition_width, nmax=nmax, lmax=lmax,chem_channels=True)
 
 
     if outformat == 'text':
