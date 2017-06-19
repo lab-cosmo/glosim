@@ -219,9 +219,8 @@ def get_Soaps(atoms,chem_channels=False, centerweight=1.0, gaussian_width=0.5, c
 
     return Soaps
 
-
-def get_AvgSoaps(atoms, centerweight=1.0, gaussian_width=0.5, cutoff=3.5,
-                 cutoff_transition_width=0.5, nmax=8, lmax=6, chem_channels=False):
+def get_AvgSoaps(atoms, chem_channels=False, centerweight=1.0, gaussian_width=0.5, cutoff=3.5,
+                 cutoff_transition_width=0.5, nmax=8, lmax=6):
     '''
     Compute the average SOAP vectors for each atomic environment in atoms and
     reorder them into chemical channels.
@@ -260,6 +259,50 @@ def get_AvgSoaps(atoms, centerweight=1.0, gaussian_width=0.5, cutoff=3.5,
         else:
             AvgSoaps.append(avgrawsoap)
     return AvgSoaps
+
+
+def get_AvgDeltaKernel(AvgRawSoapListA, AvgRawSoapListB):
+    return np.dot(np.array(AvgRawSoapListA),np.array(AvgRawSoapListB).T)
+
+def get_AvgDeltaSim(AvgSoapA, AvgSoapB, chem_channels=False):
+    if chem_channels:
+        AvgDeltaSim = 0
+        for spA in AvgSoapA:
+            for spB in AvgSoapB:
+                if np.all(spA != spB):
+                    continue
+                elif np.all(spA == spB):
+                    AvgDeltaSim += np.vdot(AvgSoapA[spA], AvgSoapB[spB])
+    else:
+        AvgDeltaSim = np.vdot(AvgSoapA, AvgSoapB)
+
+    return AvgDeltaSim
+
+def get_ChemDelta(alchemyAvgSoapA,alchemyAvgSoapB):
+    chemicalSim = {}
+    for spA in alchemyAvgSoapA:
+        for spB in alchemyAvgSoapB:
+            if np.all(spA == spB):
+                chemicalSim[spA + spB] = 1.
+            else:
+                chemicalSim[spA + spB] = 0.
+    return chemicalSim
+
+def get_AvgSim(alchemyAvgSoapA, alchemyAvgSoapB, chemicalSimGen):
+    chemicalSim = chemicalSimGen(alchemyAvgSoapA, alchemyAvgSoapB)
+    AvgSim = 0
+    for spA in alchemyAvgSoapA:
+        for spB in alchemyAvgSoapB:
+            theta = chemicalSim[spA + spB]
+            if theta == 0.:
+                continue
+            else:
+                AvgSim += theta * np.vdot(alchemyAvgSoapA[spA], alchemyAvgSoapB[spB])
+
+    return AvgSim
+
+
+
 
 def dumpAlchemySoapstxt(alchemySoaps,fout):
     '''
