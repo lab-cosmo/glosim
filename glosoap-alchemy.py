@@ -249,8 +249,9 @@ def get_AvgSoaps(atoms, centerweight=1.0, gaussian_width=0.5, cutoff=3.5,
         # get the soap vectors (power spectra) for each atomic environments in atm
         rawsoaps = get_soap(atm, spkit, spkitMax, centerweight, gaussian_width,
                             cutoff, cutoff_transition_width, nmax, lmax)
-        # compute the average soap over an atomic environment
-        avgrawsoap = np.concatenate(rawsoaps.values(), axis=0).sum(axis=0)
+        # compute the average soap over an atomic environment (creates a matrix with each line a soap
+        # vector of one atomic environement and then average over the rows)
+        avgrawsoap = np.concatenate(rawsoaps.values(), axis=0).mean(axis=0)
 
         # chemical channel separation for each each atomic environment
         if chem_channels:
