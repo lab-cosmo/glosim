@@ -10,19 +10,19 @@ def atomicno_to_sym(atno):
   pdict={1: 'H', 2: 'He', 3: 'Li', 4: 'Be', 5: 'B', 6: 'C', 7: 'N', 8: 'O', 9: 'F', 10: 'Ne', 11: 'Na', 12: 'Mg', 13: 'Al', 14: 'Si', 15: 'P', 16: 'S', 17: 'Cl', 18: 'Ar', 19: 'K', 20: 'Ca', 21: 'Sc', 22: 'Ti', 23: 'V', 24: 'Cr', 25: 'Mn', 26: 'Fe', 27: 'Co', 28: 'Ni', 29: 'Cu', 30: 'Zn', 31: 'Ga', 32: 'Ge', 33: 'As', 34: 'Se', 35: 'Br', 36: 'Kr', 37: 'Rb', 38: 'Sr', 39: 'Y', 40: 'Zr', 41: 'Nb', 42: 'Mo', 43: 'Tc', 44: 'Ru', 45: 'Rh', 46: 'Pd', 47: 'Ag', 48: 'Cd', 49: 'In', 50: 'Sn', 51: 'Sb', 52: 'Te', 53: 'I', 54: 'Xe', 55: 'Cs', 56: 'Ba', 57: 'La', 58: 'Ce', 59: 'Pr', 60: 'Nd', 61: 'Pm', 62: 'Sm', 63: 'Eu', 64: 'Gd', 65: 'Tb', 66: 'Dy', 67: 'Ho', 68: 'Er', 69: 'Tm', 70: 'Yb', 71: 'Lu', 72: 'Hf', 73: 'Ta', 74: 'W', 75: 'Re', 76: 'Os', 77: 'Ir', 78: 'Pt', 79: 'Au', 80: 'Hg', 81: 'Tl', 82: 'Pb', 83: 'Bi', 84: 'Po', 85: 'At', 86: 'Rn', 87: 'Fr', 88: 'Ra', 89: 'Ac', 90: 'Th', 91: 'Pa', 92: 'U', 93: 'Np', 94: 'Pu', 95: 'Am', 96: 'Cm', 97: 'Bk', 98: 'Cf', 99: 'Es', 100: 'Fm', 101: 'Md', 102: 'No', 103: 'Lr', 104: 'Rf', 105: 'Ha', 106: 'Sg', 107: 'Ns', 108: 'Hs', 109: 'Mt', 110: 'Unn', 111: 'Unu'}
   return pdict[atno]
 
-def get_spkitMax(atoms):
+def get_spkitMax(frames):
     '''
-    Get the set of species their maximum number across atoms.
+    Get the set of species their maximum number across frames.
 
-    :param atoms: list of quippy Atoms object
+    :param frames: list of quippy frames object
     :return: Dictionary with species as key and return its
                 largest number of occurrence
     '''
     spkitMax = {}
 
-    for at in atoms:
+    for frame in frames:
         atspecies = {}
-        for z in at.z:
+        for z in frame.z:
             if z in atspecies:
                 atspecies[z] += 1
             else:
@@ -36,15 +36,15 @@ def get_spkitMax(atoms):
 
     return spkitMax
 
-def get_spkit(atom):
+def get_spkit(frame):
     '''
-    Get the set of species their number across atom.
+    Get the set of species their number across frame.
 
-    :param atom: One quippy Atoms object
+    :param frame: One quippy frames object
     :return:
     '''
     spkit = {}
-    for z in atom.z:
+    for z in frame.z:
         if z in spkit:
             spkit[z]+=1
         else:
@@ -52,23 +52,23 @@ def get_spkit(atom):
     return spkit
 
 
-def get_soap(atom, spkit, spkitMax, centerweight=1., gaussian_width=0.5,
+def get_soap(frame, spkit, spkitMax, centerweight=1., gaussian_width=0.5,
              cutoff=5.0, cutoff_transition_width=0.5, nmax=8, lmax=6):
     '''
-    Get the soap vectors (power spectra) for each atomic environments in atom.
+    Get the soap vectors (power spectra) for each frameic environments in frame.
 
-    :param atom: A quippy Atoms object
-    :param spkit: Dictionary with specie as key and number of corresponding atom as item.
-                    Returned by get_spkit(atom).
+    :param frame: A quippy atomsList object
+    :param spkit: Dictionary with specie as key and number of corresponding frame as item.
+                    Returned by get_spkit(frame).
     :param spkitMax: Dictionary with species as key and return its largest number of occurrence.
-                        Returned by get_spkitMax(atoms) .
+                        Returned by get_spkitMax(frames) .
     :param centerweight: Center atom weight
     :param gaussian_width: Atom Gaussian std
     :param cutoff: Cutoff radius for each atomic environment in the unit of cell and positions.
     :param cutoff_transition_width: Steepness of the smooth environmental cutoff radius. Smaller -> steeper
     :param nmax: Number of radial basis functions.
     :param lmax: Number of Spherical harmonics.
-    :return: Soap vectors of atom. Dictionary (keys:atomic number of the central atom,
+    :return: Soap vectors of Atoms quippy class. Dictionary (keys:atomic number of the central atom,
                 items: list of power spectra for each central atom
                         with corresponding atomic number )
     '''
@@ -79,8 +79,8 @@ def get_soap(atom, spkit, spkitMax, centerweight=1., gaussian_width=0.5,
         lspecies = lspecies + str(z) + ' '
     lspecies = lspecies + '}'
 
-    atom.set_cutoff(cutoff)
-    atom.calc_connect()
+    frame.set_cutoff(cutoff)
+    frame.calc_connect()
 
     soap = {}
     for (z, nz) in spkit.iteritems():
@@ -93,7 +93,7 @@ def get_soap(atom, spkit, spkitMax, centerweight=1., gaussian_width=0.5,
 
         desc = qp.descriptors.Descriptor(soapstr)
 
-        sps = desc.calc(atom)["descriptor"]
+        sps = desc.calc(frame)["descriptor"]
         soap[z] = sps
 
     return soap
@@ -106,7 +106,7 @@ def Soap2AlchemySoap(rawsoap, spkit, nmax, lmax):
 
     :param rawsoap: numpy array dim:(N,) containing the soap vector of one environment
     :param spkit: Dictionary with specie as key and number of corresponding atom as item.
-                    Returned by get_spkit(atom).
+                    Returned by get_spkit(frame).
     :param nmax: Number of radial basis functions.
     :param lmax: Number of Spherical harmonics.
     :return: Dictionary  (keys: species tuples (sp1,sp2),
@@ -161,20 +161,20 @@ def Soap2AlchemySoap(rawsoap, spkit, nmax, lmax):
     return alchemySoap
 
 
-def get_Soaps(atoms,chem_channels=False, centerweight=1.0, gaussian_width=0.5, cutoff=3.5,
+def get_Soaps(frames,chem_channels=False, centerweight=1.0, gaussian_width=0.5, cutoff=3.5,
                      cutoff_transition_width=0.5 , nmax=8, lmax=6):
     '''
-    Compute the SOAP vectors for each atomic environment in atoms and
+    Compute the SOAP vectors for each atomic environment in frames and
     reorder them into chemical channels.
 
-    :param atoms: list of quippy Atoms object
+    :param frames: list of quippy frames object
     :param centerweight: Center atom weight
     :param gaussian_width: Atom Gaussian std
     :param cutoff: Cutoff radius for each atomic environment in the unit of cell and positions.
     :param cutoff_transition_width: Steepness of the smooth environmental cutoff radius. Smaller -> steeper
     :param nmax: Number of radial basis functions.
     :param lmax: Number of Spherical harmonics.
-    :return: Nested List/Dictionary: list->atoms,
+    :return: Nested List/Dictionary: list->frames,
                 dict->(keys:atomic number,
                 items:list of atomic environment), list->atomic environment,
                 dict->(keys:chemical channel, (sp1,sp2) sp* is atomic number
@@ -183,13 +183,13 @@ def get_Soaps(atoms,chem_channels=False, centerweight=1.0, gaussian_width=0.5, c
     '''
 
     Soaps = []
-    # get the set of species their maximum number across atoms
-    spkitMax = get_spkitMax(atoms)
+    # get the set of species their maximum number across frames
+    spkitMax = get_spkitMax(frames)
 
-    for atom in atoms:
+    for frame in frames:
 
         # to avoid side effect due to pointers
-        atm = atom.copy()
+        atm = frame.copy()
         # get the set of species their number across atom
         spkit = get_spkit(atm)
         # get the soap vectors (power spectra) for each atomic environments in atm
@@ -219,30 +219,30 @@ def get_Soaps(atoms,chem_channels=False, centerweight=1.0, gaussian_width=0.5, c
 
     return Soaps
 
-def get_AvgSoaps(atoms, chem_channels=False, centerweight=1.0, gaussian_width=0.5, cutoff=3.5,
+def get_AvgSoaps(frames, chem_channels=False, centerweight=1.0, gaussian_width=0.5, cutoff=3.5,
                  cutoff_transition_width=0.5, nmax=8, lmax=6):
     '''
-    Compute the average SOAP vectors for each atomic environment in atoms and
+    Compute the average SOAP vectors for each atomic environment in frames and
     reorder them into chemical channels.
 
-    :param atoms: list of quippy Atoms object
+    :param frames: list of quippy frames object
     :param centerweight: Center atom weight
     :param gaussian_width: Atom Gaussian std
     :param cutoff: Cutoff radius for each atomic environment in the unit of cell and positions.
     :param cutoff_transition_width: Steepness of the smooth environmental cutoff radius. Smaller -> steeper
     :param nmax: Number of radial basis functions.
     :param lmax: Number of Spherical harmonics.
-    :return: Nested List/Dictionary: list->atoms,
+    :return: Nested List/Dictionary: list->frames,
                 dict->(keys:chemical channel, (sp1,sp2) sp* is atomic number
                       inside the atomic environment),
                        items: SOAP vector, flat numpy array)
     '''
     AvgSoaps = []
-    # get the set of species their maximum number across atoms
-    spkitMax = get_spkitMax(atoms)
-    for atom in atoms:
+    # get the set of species their maximum number across frames
+    spkitMax = get_spkitMax(frames)
+    for frame in frames:
         # to avoid side effect due to pointers
-        atm = atom.copy()
+        atm = frame.copy()
         # get the set of species their number across atom
         spkit = get_spkit(atm)
         # get the soap vectors (power spectra) for each atomic environments in atm
@@ -308,7 +308,7 @@ def dumpAlchemySoapstxt(alchemySoaps,fout):
     '''
     Print in text format the alchemySoaps using the same format as in glosim --verbose
 
-    :param alchemySoaps: Nested List/Dictionary: list->atoms,
+    :param alchemySoaps: Nested List/Dictionary: list->frames,
                 dict->(keys:atomic number,
                 items:list of atomic environment), list->atomic environment,
                 dict->(keys:chemical channel, (sp1,sp2) sp* is atomic number
@@ -333,7 +333,7 @@ def dumpAlchemySoapspickle(alchemySoaps, fout):
     '''
     Dump alchemySoaps in pickle binary format. Read with pck.load(filename)
 
-    :param alchemySoaps: Nested List/Dictionary: list->atoms,
+    :param alchemySoaps: Nested List/Dictionary: list->frames,
                 dict->(keys:atomic number,
                 items:list of atomic environment), list->atomic environment,
                 dict->(keys:chemical channel, (sp1,sp2) sp* is atomic number
@@ -391,10 +391,10 @@ if __name__ == '__main__':
     # Reads input file using quippy
     print "Reading input file", filename
 
-    # Reads the file and create a list of quippy Atoms object
-    atoms = qp.AtomsList(filename, start=first, stop=last)
+    # Reads the file and create a list of quippy frames object
+    frames = qp.AtomsList(filename, start=first, stop=last)
 
-    alchemySoaps = get_Soaps(atoms, centerweight=centerweight, gaussian_width=gaussian_width, cutoff=cutoff,
+    alchemySoaps = get_Soaps(frames, centerweight=centerweight, gaussian_width=gaussian_width, cutoff=cutoff,
                      cutoff_transition_width=cutoff_transition_width, nmax=nmax, lmax=lmax,chem_channels=True)
 
 
