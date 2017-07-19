@@ -58,37 +58,39 @@ def randomsubset(ndata, nsel, plist=None):
 
 def farthestPointSampling(kernel,nbOfFrames,nbOfLandmarks,seed=10,initalLandmark=None,listOfDiscardedPoints=None,verbose=False):
     np.random.seed(seed)
-    LandmarksIdx = np.zeros(nbOfLandmarks,int)
+    LandmarksIdx = -1 * np.ones(nbOfLandmarks, int)
     if listOfDiscardedPoints is None:
         listOfDiscardedPoints = []
     if initalLandmark is None:
-        isel = int(np.random.uniform()*nbOfFrames)
+        isel = int(np.random.uniform() * nbOfFrames)
         while isel in listOfDiscardedPoints:
-            isel=int(np.random.uniform()*nbOfFrames)
+            isel = int(np.random.uniform() * nbOfFrames)
     else:
         isel = initalLandmark
-    
+
     diag = np.diag(kernel)
-    
-    ldist = 1e100*np.ones(nbOfFrames,float)
-    
+
+    ldist = 1e100 * np.ones(nbOfFrames, float)
+
     LandmarksIdx[0] = isel
     nontrue = np.setdiff1d(range(nbOfFrames), listOfDiscardedPoints)
-    
-    for nsel in xrange(1,nbOfLandmarks):
-        dmax = 0*np.ones(nbOfFrames,float)
-        imax = 0       
-        distLine = np.sqrt(kernel[isel,isel] + diag - 2 * kernel[isel,:])
-        
+    print nontrue.shape
+    for nsel in xrange(1, nbOfLandmarks):
+        dmax = np.zeros(nbOfFrames, float)
+        imax = 0
+        distLine = np.sqrt(kernel[isel, isel] + diag - 2 * kernel[isel, :])
+
         dsel = distLine[nontrue]
-        
+
         low = dsel < ldist
         ldist[low] = dsel[low]
-        larg = ldist > dmax
-        dmax[larg] = ldist[larg]
-        
-        isel = dmax.argmax()
-        LandmarksIdx[nsel] = isel
+
+        # select indices that are the farther away
+        selIds = list(np.argwhere(ldist == np.max(ldist)).reshape((-1,)))
+        # select the indices that have not already been selected
+        newIds = list(np.setdiff1d(selIds, LandmarksIdx).reshape((-1,)))
+        # get the first one
+        LandmarksIdx[nsel] = newIds[0]
         if verbose is True:
             print "selected ", isel, " distance ", dmax[isel]
             
