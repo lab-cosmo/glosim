@@ -56,42 +56,46 @@ def randomsubset(ndata, nsel, plist=None):
             cplist[j] -= psel
     return rdata
 
-def farthestPointSampling(kernel,nbOfFrames,nbOfLandmarks,seed=10,initalLandmark=None,listOfDiscardedPoints=None,verbose=False):
+
+def farthestPointSampling(kernel, nbOfFrames, nbOfLandmarks, seed=10, initalLandmark=None, listOfDiscardedPoints=None,
+                          verbose=False):
     np.random.seed(seed)
-    LandmarksIdx = np.zeros(nbOfLandmarks,int)
+    LandmarksIdx = -1 * np.ones(nbOfLandmarks, int)
     if listOfDiscardedPoints is None:
         listOfDiscardedPoints = []
     if initalLandmark is None:
-        isel = int(np.random.uniform()*nbOfFrames)
+        isel = int(np.random.uniform() * nbOfFrames)
         while isel in listOfDiscardedPoints:
-            isel=int(np.random.uniform()*nbOfFrames)
+            newIdx = int(np.random.uniform() * nbOfFrames)
     else:
-        isel = initalLandmark
-    
+        newIdx = initalLandmark
+
     diag = np.diag(kernel)
-    
-    ldist = 1e100*np.ones(nbOfFrames,float)
-    
-    LandmarksIdx[0] = isel
+
+    ldist = 1e100 * np.ones(nbOfFrames, float)
+
+    LandmarksIdx[0] = newIdx
     nontrue = np.setdiff1d(range(nbOfFrames), listOfDiscardedPoints)
-    
-    for nsel in xrange(1,nbOfLandmarks):
-        dmax = 0*np.ones(nbOfFrames,float)
-        imax = 0       
-        distLine = np.sqrt(kernel[isel,isel] + diag - 2 * kernel[isel,:])
-        
+
+    for nsel in xrange(1, nbOfLandmarks):
+
+        distLine = np.sqrt(kernel[newIdx, newIdx] + diag - 2 * kernel[newIdx, :])
+
         dsel = distLine[nontrue]
-        
-        low = dsel < ldist
-        ldist[low] = dsel[low]
-        larg = ldist > dmax
-        dmax[larg] = ldist[larg]
-        
-        isel = dmax.argmax()
-        LandmarksIdx[nsel] = isel
+
+        ldist[dsel < ldist] = dsel[dsel < ldist]
+
+        # select indices that are the farther away
+        selIds = np.argwhere(ldist == np.max(ldist)).reshape((-1,))
+        # select the indices that have not already been selected
+        newIds = list(np.setdiff1d(selIds, LandmarksIdx).reshape((-1,)))
+        # get the first one
+        newIdx = newIds[0]
+        LandmarksIdx[nsel] = newIdx
+
         if verbose is True:
-            print "selected ", isel, " distance ", dmax[isel]
-            
+            print "selected ", newIdx, " distance ", ldist[newIdx]
+
     return LandmarksIdx
 
 def main(kernel, props, mode, nland,output="distance", prefix=""):
