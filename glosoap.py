@@ -28,13 +28,15 @@ def atomicno_to_sym(atno):
   return pdict[atno]
 
 
-def main(filename, nmax, lmax, coff, cotw, gs, centerweight, gspecies, curfiles, prefix=""):
+def main(filename, nmax, lmax, coff, cotw, gs, centerweight, prefix=""):
     start_time = datetime.now()
+    
     filename = filename[0]
     # sets a few defaults
     if prefix=="": prefix=filename
     if prefix.endswith('.xyz'): prefix=prefix[:-4]
     prefix=prefix+"-n"+str(nmax)+"-l"+str(lmax)+"-c"+str(coff)+"-g"+str(gs)
+
     print >> sys.stderr, "using output prefix =", prefix
     # Reads input file using quippy
     print >> sys.stderr, "Reading input file", filename
@@ -59,31 +61,12 @@ def main(filename, nmax, lmax, coff, cotw, gs, centerweight, gspecies, curfiles,
                 spkit[z] = nz
     
     # species string 
-    if gspecies is None:
-        zsp=spkit.keys()
-        zsp.sort()
-        print "No species provided"
-    else: zsp=map(int,gspecies.split(",")) 
-
-    # If dimensionality reduction is called, stores the variables
-    cur = False
-    if curfiles is not None:
-        cur = True
-        # Does not matter in which sequence the files are provided
-        try:
-            cursel = np.loadtxt(curfiles[0], dtype=int)
-            chol = np.loadtxt(curfiles[1])
-        except ValueError:
-            cursel = np.loadtxt(curfiles[1], dtype=int)
-            chol = np.loadtxt(curfiles[0])
-
-        # Checks if all dimensions are the same
-        assert cursel.shape[0] == chol.shape[0] == chol.shape[1], "Wrong dimensions, cannot perform dimensionality reduction"
-        
+    zsp=spkit.keys();
+    zsp.sort(); 
     lspecies = 'n_species='+str(len(zsp))+' species_Z={ '
     for z in zsp: lspecies = lspecies + str(z) + ' '
     lspecies = lspecies + '}'   
-    #lspecies = "n_species=6 species_Z={ 1 6 7 8 16 17 }"  # When train and test datasets have different species, this (or equivalent) is needed to obtain the same power spectrum for both
+    print lspecies
     fout=open(prefix+".soap","w")
     for at in al:
         fout.write("%d\n" % (len(at.z)))
@@ -102,16 +85,15 @@ def main(filename, nmax, lmax, coff, cotw, gs, centerweight, gspecies, curfiles,
            "  covariance_sigma0=0.0 atom_sigma="+str(gs)+" cutoff="+str(coff)+" cutoff_transition_width="+str(cotw)+
            " n_max="+str(nmax)+" l_max="+str(lmax)+' '+lspecies+' Z='+str(z))
             desc = quippy.descriptors.Descriptor(soapstr )
+            print soapstr
             soaps[z] = desc.calc(at)["descriptor"]
         for z in at.z:
             fout.write("%3s  " % (atomicno_to_sym(z)))
-            if cur:
-                single_soap = soaps[z][len(soaps[z])-sz[z]]
-                red_soap = np.dot(single_soap[cursel], chol)
-                np.savetxt(fout, [red_soap])
-            else: np.savetxt(fout, [ soaps[z][len(soaps[z])-sz[z]] ])
+            np.savetxt(fout, [ soaps[z][len(soaps[z])-sz[z]] ])
             sz[z] -=1
         
+        print sz
+
     fout.close() 
 
 if __name__ == '__main__':
@@ -125,11 +107,9 @@ if __name__ == '__main__':
       parser.add_argument("--cotw", type=float, default='0.5', help="Cutoff transition width")
       parser.add_argument("-g", type=float, default='0.5', help="Atom Gaussian sigma")
       parser.add_argument("-cw", type=float, default='1.0', help="Center atom weight")
-      parser.add_argument("-z", type=str, default=None, help="Comma separated atomic numbers of the species that must be considered")
-      parser.add_argument("--reduce", type=str, nargs = 2, default=None, metavar=('COLS', 'CHOL'), help="Reduce the output power spectrum using two provided files, one for the indices of the columns, the other containing the cholesky decomposed UR matrix")
       parser.add_argument("--prefix", type=str, default='', help="Prefix for output files (defaults to input file name)")
       
            
       args = parser.parse_args()
 
-      main(args.filename, nmax=args.n, lmax=args.l, coff=args.c, cotw=args.cotw, gs=args.g, centerweight=args.cw, gspecies=args.z, curfiles=args.reduce, prefix=args.prefix)
+      main(args.filename, nmax=args.n, lmax=args.l, coff=args.c, cotw=args.cotw, gs=args.g, centerweight=args.cw, prefix=args.prefix)
