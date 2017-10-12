@@ -274,7 +274,7 @@ def main(kernels, props, kweights, mode, trainfrac, csi, sigma, ntests, ttest, s
     
     if savevector:
         fname=open(savevector,'w')
-        commentline=' Train Vector from kernel matrix: '+kernel+' and properties from '+ props + ' selection mode: '+mode+' : Csi, sigma = ' + str(csi) +' , '+ str(sigma)
+        commentline=' Train Vector from kernel matrix: '+kernels[0]+' and properties from '+ props + ' selection mode: '+mode+' : Csi, sigma = ' + str(csi) +' , '+ str(sigma)
         np.savetxt(fname,np.asarray([tc, ltrain, rlabs[ltrain]]).T,fmt=("%24.15e", "%10d", "%10d"),header=commentline)
         fname.close()
 
