@@ -28,7 +28,7 @@ def atomicno_to_sym(atno):
   return pdict[atno]
 
 
-def main(filename, nmax, lmax, coff, cotw, gs, centerweight, gspecies, curfiles, prefix=""):
+def main(filename, nmax, lmax, coff, cotw, gs, centerweight, gspecies, redfiles, prefix=""):
     start_time = datetime.now()
     filename = filename[0]
     # sets a few defaults
@@ -67,24 +67,28 @@ def main(filename, nmax, lmax, coff, cotw, gs, centerweight, gspecies, curfiles,
 
     # If dimensionality reduction is called, stores the variables
     cur = False
-    if curfiles is not None:
+    if redfiles is not None:
         cur = True
         # Does not matter in which sequence the files are provided
         try:
-            cursel = np.loadtxt(curfiles[0], dtype=int)
-            chol = np.loadtxt(curfiles[1])
+            idxsel = np.loadtxt(redfiles[0], dtype=int)
+            chol = np.loadtxt(redfiles[1])
         except ValueError:
-            cursel = np.loadtxt(curfiles[1], dtype=int)
-            chol = np.loadtxt(curfiles[0])
+            idxsel = np.loadtxt(redfiles[1], dtype=int)
+            chol = np.loadtxt(redfiles[0])
 
         # Checks if all dimensions are the same
-        assert cursel.shape[0] == chol.shape[0] == chol.shape[1], "Wrong dimensions, cannot perform dimensionality reduction"
+        assert idxsel.shape[0] == chol.shape[0] == chol.shape[1], "Wrong dimensions, cannot perform dimensionality reduction"
         
     lspecies = 'n_species='+str(len(zsp))+' species_Z={ '
     for z in zsp: lspecies = lspecies + str(z) + ' '
     lspecies = lspecies + '}'   
-    #lspecies = "n_species=6 species_Z={ 1 6 7 8 16 17 }"  # When train and test datasets have different species, this (or equivalent) is needed to obtain the same power spectrum for both
-    fout=open(prefix+".soap","w")
+    print "Using the following species:", ",".join([str(z) for z in zsp])
+    if not cur:
+        fout=open(prefix+".soap","w")
+    else:
+        fout=open(prefix+"_red.soap","w") # To avoid giving the same name to the reduced soap vector
+    counter = 0
     for at in al:
         fout.write("%d\n" % (len(at.z)))
         at.set_cutoff(coff);
@@ -107,10 +111,13 @@ def main(filename, nmax, lmax, coff, cotw, gs, centerweight, gspecies, curfiles,
             fout.write("%3s  " % (atomicno_to_sym(z)))
             if cur:
                 single_soap = soaps[z][len(soaps[z])-sz[z]]
-                red_soap = np.dot(single_soap[cursel], chol)
+                red_soap = np.dot(single_soap[idxsel], chol)
                 np.savetxt(fout, [red_soap])
             else: np.savetxt(fout, [ soaps[z][len(soaps[z])-sz[z]] ])
             sz[z] -=1
+        counter +=1
+        sys.stderr.write("SOAP vectors calculated: %d / %d   \r" %(counter, len(al.n)) )
+    sys.stderr.write("\n")
         
     fout.close() 
 
@@ -126,10 +133,10 @@ if __name__ == '__main__':
       parser.add_argument("-g", type=float, default='0.5', help="Atom Gaussian sigma")
       parser.add_argument("-cw", type=float, default='1.0', help="Center atom weight")
       parser.add_argument("-z", type=str, default=None, help="Comma separated atomic numbers of the species that must be considered")
-      parser.add_argument("--reduce", type=str, nargs = 2, default=None, metavar=('COLS', 'CHOL'), help="Reduce the output power spectrum using two provided files, one for the indices of the columns, the other containing the cholesky decomposed UR matrix")
+      parser.add_argument("--reduce", type=str, nargs = 2, default=None, metavar=('COLS', 'CHOL'), help="Reduce the output power spectrum using two provided files, one for the indices of the columns, the other containing the decomposed UR matrix")
       parser.add_argument("--prefix", type=str, default='', help="Prefix for output files (defaults to input file name)")
       
            
       args = parser.parse_args()
 
-      main(args.filename, nmax=args.n, lmax=args.l, coff=args.c, cotw=args.cotw, gs=args.g, centerweight=args.cw, gspecies=args.z, curfiles=args.reduce, prefix=args.prefix)
+      main(args.filename, nmax=args.n, lmax=args.l, coff=args.c, cotw=args.cotw, gs=args.g, centerweight=args.cw, gspecies=args.z, redfiles=args.reduce, prefix=args.prefix)
