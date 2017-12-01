@@ -6,7 +6,7 @@
 
 import argparse
 import numpy as np
-import sys
+import sys, os
 
 def segfind(cp, cs):
     a = 0
@@ -79,7 +79,10 @@ def main(kernels, props, kweights, mode, trainfrac, csi, sigma, ntests, ttest, s
     kij = np.loadtxt(kernels[0]) * kweights[0]
     for i in xrange(1,len(kernels)):
        print kernels[i]
-       kij += np.loadtxt(kernels[i]) * kweights[i]
+       if os.path.splitext(kernels[i]) == "npy":
+          kij += np.load(kernels[i]) * kweights[i] 
+       else:
+          kij += np.loadtxt(kernels[i]) * kweights[i]
     nel = len(kij)
 
     # heuristics to see if this is a kernel or a similarity matrix!!
