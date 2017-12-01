@@ -76,13 +76,13 @@ def main(kernels, props, kweights, mode, trainfrac, csi, sigma, ntests, ttest, s
     kweights /= kweights.sum()
     # reads kernel(s)
     print "# Using kernels ", kernels, " with weights ", kweights
-    if os.path.splitext(kernels[0]) == "npy":
+    if os.path.splitext(kernels[0])[1] == ".npy":
        kij = np.load(kernels[0]) * kweights[0]
     else:
        kij = np.loadtxt(kernels[0]) * kweights[0]
     for i in xrange(1,len(kernels)):
        print kernels[i]
-       if os.path.splitext(kernels[i]) == "npy":
+       if os.path.splitext(kernels[i])[1] == ".npy":
           kij += np.load(kernels[i]) * kweights[i] 
        else:
           kij += np.loadtxt(kernels[i]) * kweights[i]
