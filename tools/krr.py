@@ -6,7 +6,7 @@
 
 import argparse
 import numpy as np
-import sys
+import sys, os
 
 def segfind(cp, cs):
     a = 0
@@ -76,10 +76,16 @@ def main(kernels, props, kweights, mode, trainfrac, csi, sigma, ntests, ttest, s
     kweights /= kweights.sum()
     # reads kernel(s)
     print "# Using kernels ", kernels, " with weights ", kweights
-    kij = np.loadtxt(kernels[0]) * kweights[0]
+    if os.path.splitext(kernels[0]) == "npy":
+       kij = np.load(kernels[0]) * kweights[0]
+    else:
+       kij = np.loadtxt(kernels[0]) * kweights[0]
     for i in xrange(1,len(kernels)):
        print kernels[i]
-       kij += np.loadtxt(kernels[i]) * kweights[i]
+       if os.path.splitext(kernels[i]) == "npy":
+          kij += np.load(kernels[i]) * kweights[i] 
+       else:
+          kij += np.loadtxt(kernels[i]) * kweights[i]
     nel = len(kij)
 
     # heuristics to see if this is a kernel or a similarity matrix!!
@@ -274,7 +280,7 @@ def main(kernels, props, kweights, mode, trainfrac, csi, sigma, ntests, ttest, s
     
     if savevector:
         fname=open(savevector,'w')
-        commentline=' Train Vector from kernel matrix: '+kernels+' with weights '+kweights+' and properties from '+ props + ' selection mode: '+mode+' : Csi, sigma = ' + str(csi) +' , '+ str(sigma)
+        commentline=' Train Vector from kernel matrices: '+str(kernels)+' with weights '+kweights+' and properties from '+ props[0] + ' selection mode: '+mode+' : Csi, sigma = ' + str(csi) +' , '+ str(sigma)
         np.savetxt(fname,np.asarray([tc, ltrain, rlabs[ltrain]]).T,fmt=("%24.15e", "%10d", "%10d"),header=commentline)
         fname.close()
 

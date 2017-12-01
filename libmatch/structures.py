@@ -24,6 +24,7 @@ class structure:
       self.env={}
       self.species={}
       self.zspecies = []
+      self.atz = []
       self.nenv=0  
       self.alchem=salchem
       if self.alchem is None: self.alchem=alchemy()
@@ -34,6 +35,18 @@ class structure:
          return self.species[sp]
       else: return 0
       
+   def getatomenv(self, i):
+      if i>=len(self.atz):
+          raise IndexError("Trying to access atom past structure size")
+      k=0
+      lsp = {}
+      for z in self.atz:
+         if z in lsp: lsp[z]+=1
+         else: lsp[z] = 0
+         if i==k: 
+             return self.env[z][lsp[z]]           
+         k+=1
+       
    def getenv(self, sp, i):
       if sp in self.env and i<len(self.env[sp]):
          return self.env[sp][i]
@@ -56,8 +69,10 @@ class structure:
          if at.z[s] in noatom: nol.append(s)
       if len(nol)>0: at.remove_atoms(nol)
       
+      
       self.nmax = nmax
       self.lmax = lmax
+      self.atz = at.z.copy()
       self.species = {}
       for z in at.z:      
          if z in self.species: self.species[z]+=1
@@ -85,11 +100,9 @@ class structure:
          if not soapdump is None: sys.stderr.write("SOAP STRING:    "+"soap central_reference_all_species=F central_weight="+str(cw)+"  covariance_sigma0=0.0 atom_sigma="+str(gs)+" cutoff="+str(coff)+" cutoff_transition_width="+str(cotw)+" n_max="+str(nmax)+" l_max="+str(lmax)+' '+lspecies+' Z='+str(sp)+"\n")
          desc = quippy.descriptors.Descriptor("soap central_reference_all_species=F central_weight="+str(cw)+"  covariance_sigma0=0.0 atom_sigma="+str(gs)+" cutoff="+str(coff)+" cutoff_transition_width="+str(cotw)+" n_max="+str(nmax)+" l_max="+str(lmax)+' '+lspecies+' Z='+str(sp) )   
          try:
-            psp =np.asarray(desc.calc(at,desc.dimensions(),self.species[sp])).T
+            psp = desc.calc(at)["descriptor"]
          except TypeError:
-            psp = quippy.fzeros((desc.dimensions(),desc.descriptor_sizes(at)[0]))
-            desc.calc(at,descriptor_out=psp)
-            psp = np.array(psp.T)
+            print("Interface change in QUIP/GAP. Update your code first.")
 
          if not soapdump is None:
             soapdump.write("Specie %d - %d atoms\n"% (sp,len(psp)))
