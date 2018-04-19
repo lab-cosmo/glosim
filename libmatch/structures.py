@@ -154,11 +154,11 @@ def gcd(a,b):
 def lcm(a,b):
    return a*b/gcd(b,a)
 
-#def gstructk(strucA, strucB, alchem=alchemy(), periodic=False):
+#def gstructk(strucA, strucB, alchem=alchemy(), peratom=False):
 #    
 #   return envk(strucA.globenv, strucB.globenv, alchem) 
 
-def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout=None, peps=0.0, gamma=1.0, zeta=1.0, xspecies=False):
+def structk(strucA, strucB, alchem=alchemy(), peratom=False, mode="match", fout=None, peps=0.0, gamma=1.0, zeta=1.0, xspecies=False):
    # computes the SOAP similarity KERNEL between two structures by combining atom-centered kernels
    # possible kernel modes include:
    #   average :  scalar product between averaged kernels
@@ -193,7 +193,7 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
 
    nenv = 0
    
-   if periodic: # replicate structures to match structures of different periodicity
+   if peratom: # replicate structures to match structures of different peratomity
       # we do not check for compatibility at this stage, just assume that the 
       # matching will be done somehow (otherwise it would be exceedingly hard to manage in case of non-standard alchemy)
       nspeciesA = []
@@ -276,7 +276,7 @@ def structk(strucA, strucB, alchem=alchemy(), periodic=False, mode="match", fout
    # We can first find the optimal scalar product kernel
    # we must find the maximum "cost"
    if mode == "match":
-        if periodic and nenvA != nenvB:
+        if peratom and nenvA != nenvB:
             nenv = lcm(nenvA, nenvB)
             hun = lcm_best_cost(1-kk)
         else:

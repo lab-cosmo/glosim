@@ -82,6 +82,7 @@ def main(kernels, props, kweights, mode, trainfrac, csi, sigma, ntests, ttest, s
        kij = np.loadtxt(kernels[0]) * kweights[0]
     for i in xrange(1,len(kernels)):
        print kernels[i]
+       if kweights[i]==0: continue
        if os.path.splitext(kernels[i])[1] == ".npy":
           kij += np.load(kernels[i]) * kweights[i] 
        else:
@@ -280,7 +281,7 @@ def main(kernels, props, kweights, mode, trainfrac, csi, sigma, ntests, ttest, s
     
     if savevector:
         fname=open(savevector,'w')
-        commentline=' Train Vector from kernel matrices: '+str(kernels)+' with weights '+kweights+' and properties from '+ props[0] + ' selection mode: '+mode+' : Csi, sigma = ' + str(csi) +' , '+ str(sigma)
+        commentline=' Train Vector from kernel matrices: '+str(kernels)+' with weights '+str(kweights)+' and properties from '+ props[0] + ' selection mode: '+mode+' : Csi, sigma = ' + str(csi) +' , '+ str(sigma)
         np.savetxt(fname,np.asarray([tc, ltrain, rlabs[ltrain]]).T,fmt=("%24.15e", "%10d", "%10d"),header=commentline)
         fname.close()
 
