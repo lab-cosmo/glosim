@@ -93,7 +93,7 @@ class environ:
       for sij in self.soaps:  self.soaps[sij]*=1.0/nrm
       
    # @profile
-   def convert(self, specie, species, rawsoap):      
+   def convert(self, specie, species, rawsoap, unsoap=False):      
       self.z = specie
       self.zspecies = sorted(species)
       self.nspecies = len(species)
@@ -134,7 +134,7 @@ class environ:
                ipair[(self.zspecies[s2],self.zspecies[s1])] = isel
       
       # alchemy-aware normalization
-      self.normalize()
+      if not unsoap: self.normalize()
       
 # SOAP kernel between environments (with possibly alchemical similarity matrix)
 # @profile

@@ -32,7 +32,7 @@ def atomicno_to_sym(atno):
   return pdict[atno]
 
 
-def main(filename, nd, ld, coff, cotw, gs, mu, centerweight, onpy, peratom, kmode, normalize_global, permanenteps, reggamma, nocenter, envsim, noatom, nprocs, verbose=False, envij=None, usekit=False, kit="auto", alchemyrules="none",prefix="",nlandmark=0, printsim=False,ref_xyz="",partialsim=False,lowmem=False,restartflag=False, zeta=1.0, xspecies=False,alrange=(0,0), refrange=(0,0)):
+def main(filename, nd, ld, coff, cotw, gs, mu, centerweight, onpy, peratom, unsoap, kmode, normalize_global, permanenteps, reggamma, nocenter, envsim, noatom, nprocs, verbose=False, envij=None, usekit=False, kit="auto", alchemyrules="none",prefix="",nlandmark=0, printsim=False,ref_xyz="",partialsim=False,lowmem=False,restartflag=False, zeta=1.0, xspecies=False,alrange=(0,0), refrange=(0,0)):
     start_time = datetime.now()
     print >>sys.stderr, "          TIME:  ", ctime() ;
     print >>sys.stderr, "        ___  __    _____  ___  ____  __  __ ";
@@ -71,6 +71,8 @@ def main(filename, nd, ld, coff, cotw, gs, mu, centerweight, onpy, peratom, kmod
            nclist=nclist+atomicno_to_sym(sp)
         prefix=prefix+"_exclude-"+nclist
     if normalize_global : prefix=prefix+'_nglob'
+    if peratom: prefix += '_peratom'
+    if unsoap: prefix += '_unsoap'
     
     print >> sys.stderr, "using output prefix =", prefix
     # Reads input file using quippy
@@ -206,7 +208,7 @@ def main(filename, nd, ld, coff, cotw, gs, mu, centerweight, onpy, peratom, kmod
             else:
                 si = structure(alchem)
                 sys.stderr.write("Frame %d                              \r" %(iframe) )
-                si.parse(at, coff, cotw, nd, ld, gs, centerweight, nocenter, noatom, kit = kit) #, soapdump = sys.stdout)       
+                si.parse(at, coff, cotw, nd, ld, gs, centerweight, nocenter, noatom, unsoap = unsoap, kit = kit) #, soapdump = sys.stdout)       
                 
                 # discard the list of all environments if they are not needed for this calculation
                 if kmode == "fastavg" and not verbose: 
@@ -309,7 +311,7 @@ def main(filename, nd, ld, coff, cotw, gs, mu, centerweight, onpy, peratom, kmod
                         return                                                                 #  it will store the missing frame as first frame file.
                 else:
                     si = structure(alchem)                    
-                    si.parse(at, coff, cotw, nd, ld, gs, centerweight, nocenter, noatom, kit = kit) #, soapdump = sys.stdout)       
+                    si.parse(at, coff, cotw, nd, ld, gs, centerweight, nocenter, noatom, unsoap=unsoap, kit = kit) #, soapdump = sys.stdout)       
                     if kmode == "fastavg" and not verbose: 
                         si.env = []
                     sl_ref.append(si)
@@ -337,8 +339,9 @@ def main(filename, nd, ld, coff, cotw, gs, mu, centerweight, onpy, peratom, kmod
         sys.stderr.write("Computing Similarity Matrix           \n")
         if (partialsim): 
           pfkernel=open(prefix+"_rect.k.partial","w")
-          pfkernel.write("# OOS Kernel matrix for %s. Cutoff: %f  COTW: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, cotw, nd, ld, gs, mu, centerweight, peratom, kmode, str(noatom), str(nocenter)) )
+          pfkernel.write("# OOS Kernel matrix for %s. Cutoff: %f  COTW: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, cotw, nd, ld, gs, mu, centerweight, kmode, str(noatom), str(nocenter)) )
           if (normalize_global):pfkernel.write( " Globally-normalized kernels " )        
+          if (peratom):pfkernel.write( " Intensive per-atom kernels " )     
           if (usekit):pfkernel.write( " Using reference kit: %s " % (str(kit)) )
           if (alchemyrules!="none"):pfkernel.write( " Using alchemy rules: %s " % (alchemyrules) )
           if (kmode=="rematch"): pfkernel.write( " Regularized parameter: %f " % (reggamma) )
@@ -382,8 +385,9 @@ def main(filename, nd, ld, coff, cotw, gs, mu, centerweight, onpy, peratom, kmod
             
         if(partialsim):pfkernel.close()
         fkernel = open(prefix+"_rect.k", "w")  
-        fkernel.write("# OOS Kernel matrix for %s. Cutoff: %f  COTW: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Zeta: %f Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, cotw, nd, ld, gs, mu, centerweight, zeta, peratom, kmode, str(noatom), str(nocenter)) )
-        if (normalize_global):fkernel.write( " Globally-normalized kernels " )        
+        fkernel.write("# OOS Kernel matrix for %s. Cutoff: %f  COTW: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Zeta: %f Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, cotw, nd, ld, gs, mu, centerweight, zeta, kmode, str(noatom), str(nocenter)) )
+        if (normalize_global):fkernel.write( " Globally-normalized kernels " )   
+        if (peratom): fkernel.write( " Intensive per-atom kernels " )          
         if (usekit):fkernel.write( " Using reference kit: %s " % (str(kit)) )
         if (alchemyrules!="none"):fkernel.write( " Using alchemy rules: %s " % (alchemyrules) )
         if (kmode=="rematch"): fkernel.write( " Regularized parameter: %f " % (reggamma) )
@@ -398,7 +402,7 @@ def main(filename, nd, ld, coff, cotw, gs, mu, centerweight, onpy, peratom, kmod
             
         if printsim:
             fsim = open(prefix+"_rect.sim", "w")  
-            fsim.write("# OOS Distance matrix for %s. Cutoff: %f  COTW: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, cotw, nd, ld, gs, mu, centerweight, peratom, kmode, str(noatom), str(nocenter)) )
+            fsim.write("# OOS Distance matrix for %s. Cutoff: %f  COTW: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, cotw, nd, ld, gs, mu, centerweight, kmode, str(noatom), str(nocenter)) )
             if (usekit):fsim.write( " Using reference kit: %s " % (str(kit)) )
             if (alchemyrules!="none"):fsim.write( " Using alchemy rules: %s " % (alchemyrules) )
             if (kmode=="rematch"): fsim.write( " Regularized parameter: %f " % (reggamma) )
@@ -423,8 +427,9 @@ def main(filename, nd, ld, coff, cotw, gs, mu, centerweight, onpy, peratom, kmod
         landxyz=quippy.AtomsWriter(prefix+".landmarks.xyz")   
         if (partialsim): 
           pfkernel=open(prefix+"oos.k.partial","w")
-          pfkernel.write("# Kernel matrix for OOS from %s. Cutoff: %f  COTW: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s" % (filename, coff, cotw, nd, ld, gs, mu, centerweight, peratom, kmode, str(noatom), str(nocenter)) )
+          pfkernel.write("# Kernel matrix for OOS from %s. Cutoff: %f  COTW: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s" % (filename, coff, cotw, nd, ld, gs, mu, centerweight, kmode, str(noatom), str(nocenter)) )
           if (normalize_global):pfkernel.write( " Globally-normalized kernels " )        
+          if (peratom):pfkernel.write( " Intensive per-atom kernels " )     
           if (usekit):pfkernel.write( " Using reference kit: %s " % (str(kit)) )
           if (alchemyrules!="none"):pfkernel.write( " Using alchemy rules: %s " % (alchemyrules) )
           if (kmode=="rematch"): pfkernel.write( " Regularized parameter: %f " % (reggamma) )
@@ -611,8 +616,9 @@ def main(filename, nd, ld, coff, cotw, gs, mu, centerweight, onpy, peratom, kmod
                 sim[iland,jland] = sim_rect[iland, landmarks[jland] ]
         
         fkernel = open(prefix+".landmarks.k", "w")  
-        fkernel.write("# Kernel matrix for landmarks from  %s. Cutoff: %f  COTW: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, cotw, nd, ld, gs, mu, centerweight, peratom, kmode, str(noatom), str(nocenter)) )
+        fkernel.write("# Kernel matrix for landmarks from  %s. Cutoff: %f  COTW: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, cotw, nd, ld, gs, mu, centerweight, kmode, str(noatom), str(nocenter)) )
         if (normalize_global):fkernel.write( " Globally-normalized kernels " )        
+        if (peratom): fkernel.write( " Intensive per-atom kernels " )     
         if (usekit):fkernel.write( " Using reference kit: %s " % (str(kit)) )
         if (alchemyrules!="none"):fkernel.write( " Using alchemy rules: %s " % (alchemyrules) )
         if (kmode=="rematch"): fkernel.write( " Regularized parameter: %f " % (reggamma) )
@@ -627,8 +633,9 @@ def main(filename, nd, ld, coff, cotw, gs, mu, centerweight, onpy, peratom, kmod
         fkernel.close()
         
         fkernel = open(prefix+".oos.k", "w")  
-        fkernel.write("# Kernel matrix for OOS from %s. Cutoff: %f  COTW: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s" % (filename, coff, cotw, nd, ld, gs, mu, centerweight, peratom, kmode, str(noatom), str(nocenter)) )
+        fkernel.write("# Kernel matrix for OOS from %s. Cutoff: %f  COTW: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s" % (filename, coff, cotw, nd, ld, gs, mu, centerweight, kmode, str(noatom), str(nocenter)) )
         if (normalize_global):fkernel.write( " Globally-normalized kernels " )        
+        if (peratom): fkernel.write( " Intensive per-atom kernels " )     
         if (usekit):fkernel.write( " Using reference kit: %s " % (str(kit)) )
         if (alchemyrules!="none"):fkernel.write( " Using alchemy rules: %s " % (alchemyrules) )
         if (kmode=="rematch"): fkernel.write( " Regularized parameter: %f " % (reggamma) )
@@ -644,7 +651,7 @@ def main(filename, nd, ld, coff, cotw, gs, mu, centerweight, onpy, peratom, kmod
             
         if printsim:
             fsim = open(prefix+".landmarks.sim", "w")  
-            fsim.write("# Distance matrix for %s. Cutoff: %f  COTW: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s" % (filename, coff, cotw, nd, ld, gs, mu, centerweight, peratom, kmode, str(noatom), str(nocenter)))
+            fsim.write("# Distance matrix for %s. Cutoff: %f  COTW: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s" % (filename, coff, cotw, nd, ld, gs, mu, centerweight, kmode, str(noatom), str(nocenter)))
             if (usekit):fsim.write( " Using reference kit: %s " % (str(kit)) )
             if (alchemyrules!="none"):fsim.write( " Using alchemy rules: %s " % (alchemyrules) )
             if (kmode=="rematch"): fsim.write( " Regularized parameter: %f " % (reggamma) )
@@ -657,7 +664,7 @@ def main(filename, nd, ld, coff, cotw, gs, mu, centerweight, onpy, peratom, kmod
             fsim.close()
             
             fsim = open(prefix+".oos.sim", "w")  
-            fsim.write("# OOS Distance matrix for %s. Cutoff: %f  COTW: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s" % (filename, coff, cotw, nd, ld, gs, mu, centerweight, peratom, kmode, str(noatom), str(nocenter)))
+            fsim.write("# OOS Distance matrix for %s. Cutoff: %f  COTW: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s" % (filename, coff, cotw, nd, ld, gs, mu, centerweight, kmode, str(noatom), str(nocenter)))
             if (usekit):fsim.write( " Using reference kit: %s " % (str(kit)) )
             if (alchemyrules!="none"):fsim.write( " Using alchemy rules: %s " % (alchemyrules) )
             if (kmode=="rematch"): fsim.write( " Regularized parameter: %f " % (reggamma) )
@@ -680,8 +687,9 @@ def main(filename, nd, ld, coff, cotw, gs, mu, centerweight, onpy, peratom, kmod
         
         if (partialsim): 
           pfkernel=open(prefix+".k.partial","w")
-          pfkernel.write("# Kernel matrix for %s. Cutoff: %f  COTW: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, cotw, nd, ld, gs, mu, centerweight, peratom, kmode, str(noatom), str(nocenter)) )
+          pfkernel.write("# Kernel matrix for %s. Cutoff: %f  COTW: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, cotw, nd, ld, gs, mu, centerweight, kmode, str(noatom), str(nocenter)) )
           if (normalize_global):pfkernel.write( " Globally-normalized kernels " )        
+          if (peratom):pfkernel.write( " Intensive per-atom kernels " )     
           if (usekit):pfkernel.write( " Using reference kit: %s " % (str(kit)) )
           if (alchemyrules!="none"):pfkernel.write( " Using alchemy rules: %s " % (alchemyrules) )
           if (kmode=="rematch"): pfkernel.write( " Regularized parameter: %f " % (reggamma) )
@@ -739,8 +747,9 @@ def main(filename, nd, ld, coff, cotw, gs, mu, centerweight, onpy, peratom, kmod
             
         if(partialsim):pfkernel.close()
         fkernel = open(prefix+".k", "w")  
-        fkernel.write("# Kernel matrix for %s. Cutoff: %f  COTW: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Zeta: %f   Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, cotw, nd, ld, gs, mu, centerweight, zeta, peratom, kmode, str(noatom), str(nocenter)) )
+        fkernel.write("# Kernel matrix for %s. Cutoff: %f  COTW: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Zeta: %f   Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, cotw, nd, ld, gs, mu, centerweight, zeta, kmode, str(noatom), str(nocenter)) )
         if (normalize_global):fkernel.write( " Globally-normalized kernels " )        
+        if (peratom): fkernel.write( " Intensive per-atom kernels " )     
         if (usekit):fkernel.write( " Using reference kit: %s " % (str(kit)) )
         if (alchemyrules!="none"):fkernel.write( " Using alchemy rules: %s " % (alchemyrules) )
         if (kmode=="rematch"): fkernel.write( " Regularized parameter: %f " % (reggamma) )
@@ -755,7 +764,7 @@ def main(filename, nd, ld, coff, cotw, gs, mu, centerweight, onpy, peratom, kmod
             
         if printsim:
             fsim = open(prefix+".sim", "w")  
-            fsim.write("# Distance matrix for %s. Cutoff: %f  COTW: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Zeta: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, cotw, nd, ld, gs, mu, centerweight, zeta, peratom, kmode, str(noatom), str(nocenter)) )
+            fsim.write("# Distance matrix for %s. Cutoff: %f  COTW: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Zeta: %f  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, coff, cotw, nd, ld, gs, mu, centerweight, zeta, kmode, str(noatom), str(nocenter)) )
             if (usekit):fsim.write( " Using reference kit: %s " % (str(kit)) )
             if (alchemyrules!="none"):fsim.write( " Using alchemy rules: %s " % (alchemyrules) )
             if (kmode=="rematch"): fsim.write( " Regularized parameter: %f " % (reggamma) )
@@ -769,7 +778,7 @@ def main(filename, nd, ld, coff, cotw, gs, mu, centerweight, onpy, peratom, kmod
         if fl_envsim:
             atomicmap = {1:"H",2:"He",6:"C",7:"N",8:"O",9:"F"}
             fsimenv = open(prefix+".env."+atomicmap[envsim]+"_"+str(nenv)+".sim", "w")  
-            fsimenv.write("# Environment Distance matrix for %s. species: %s Cutoff: %f  COTW: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Periodic: %s  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, atomicmap[envsim], coff, cotw, nd, ld, gs, mu, centerweight, peratom, kmode, str(noatom), str(nocenter)) )
+            fsimenv.write("# Environment Distance matrix for %s. species: %s Cutoff: %f  COTW: %f  Nmax: %d  Lmax: %d  Atoms-sigma: %f  Mu: %f  Central-weight: %f  Kernel: %s  Ignored_Z: %s  Ignored_Centers_Z: %s " % (filename, atomicmap[envsim], coff, cotw, nd, ld, gs, mu, centerweight, kmode, str(noatom), str(nocenter)) )
             if (usekit):fsimenv.write( " Using reference kit: %s " % (str(kit)) )
             if (alchemyrules!="none"):fsimenv.write( " Using alchemy rules: %s " % (alchemyrules) )
             if (kmode=="rematch"): fsimenv.write( " Regularized parameter: %f " % (reggamma) )
@@ -791,6 +800,7 @@ if __name__ == '__main__':
                            
       parser.add_argument("filename", nargs=1, help="Name of the LibAtom formatted xyz input file")
       parser.add_argument("--peratom", action="store_true", help="Normalize the kernels so that they correspond to intensive properties (per atom)")
+      parser.add_argument("--unsoap", action="store_true", help="Do not normalize SOAP vectors")    
       parser.add_argument("--separate_species", action="store_true", help="Zero out kernels betwee different centers")
       parser.add_argument("--onpy", action="store_true", help="Saves output in .npy format") 
       parser.add_argument("--exclude", type=str, default="", help="Comma-separated list of atom Z to be removed from the input structures (e.g. --exclude 96,101)")
@@ -849,4 +859,4 @@ if __name__ == '__main__':
       else:
          envij=tuple(map(int,args.ij.split(",")))
                   
-      main(args.filename, nd=args.n, ld=args.l, coff=args.c, cotw=args.cotw, gs=args.g, mu=args.mu, centerweight=args.cw, onpy=args.onpy, peratom=args.peratom, usekit=args.usekit, kit=args.kit,alchemyrules=args.alchemy_rules, kmode=args.kernel, normalize_global=args.normalize_global, permanenteps=args.permanenteps, reggamma=args.gamma, noatom=noatom, nocenter=nocenter, envsim=args.envsim, nprocs=args.np, verbose=args.verbose, envij=envij, prefix=args.prefix, nlandmark=args.nlandmarks, printsim=args.distance,ref_xyz=args.refxyz,partialsim=args.livek,lowmem=args.lowmem,restartflag=args.restart, zeta=args.zeta, xspecies=args.separate_species, alrange=(args.first,args.last), refrange=(args.reffirst, args.reflast))
+      main(args.filename, nd=args.n, ld=args.l, coff=args.c, cotw=args.cotw, gs=args.g, mu=args.mu, centerweight=args.cw, onpy=args.onpy, peratom=args.peratom, unsoap = args.unsoap, usekit=args.usekit, kit=args.kit,alchemyrules=args.alchemy_rules, kmode=args.kernel, normalize_global=args.normalize_global, permanenteps=args.permanenteps, reggamma=args.gamma, noatom=noatom, nocenter=nocenter, envsim=args.envsim, nprocs=args.np, verbose=args.verbose, envij=envij, prefix=args.prefix, nlandmark=args.nlandmarks, printsim=args.distance,ref_xyz=args.refxyz,partialsim=args.livek,lowmem=args.lowmem,restartflag=args.restart, zeta=args.zeta, xspecies=args.separate_species, alrange=(args.first,args.last), refrange=(args.reffirst, args.reflast))
