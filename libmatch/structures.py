@@ -99,7 +99,6 @@ class structure:
          # first computes the descriptors of species that are present
          if not soapdump is None: sys.stderr.write("SOAP STRING:    "+"soap central_reference_all_species=F central_weight="+str(cw)+"  covariance_sigma0=0.0 atom_sigma="+str(gs)+" cutoff="+str(coff)+" cutoff_transition_width="+str(cotw)+" n_max="+str(nmax)+" l_max="+str(lmax)+' '+lspecies+' Z='+str(sp)+"\n")
          desc = quippy.descriptors.Descriptor("soap central_reference_all_species=F "+("normalise=F" if unsoap else "")+" central_weight="+str(cw)+"  covariance_sigma0=0.0 atom_sigma="+str(gs)+" cutoff="+str(coff)+" cutoff_transition_width="+str(cotw)+" n_max="+str(nmax)+" l_max="+str(lmax)+' '+lspecies+' Z='+str(sp) )   
-         print "soap central_reference_all_species=F "+("normalise=F" if unsoap else "")+" central_weight="+str(cw)+"  covariance_sigma0=0.0 atom_sigma="+str(gs)+" cutoff="+str(coff)+" cutoff_transition_width="+str(cotw)+" n_max="+str(nmax)+" l_max="+str(lmax)+' '+lspecies+' Z='+str(sp)
          try:
             psp = desc.calc(at)["descriptor"]
          except TypeError:
